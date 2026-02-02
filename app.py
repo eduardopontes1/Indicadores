@@ -1,5 +1,3 @@
-pip install pandas plotly gspread oauth2client
-pip install streamlit pandas plotly gspread-pandas
 
 import streamlit as st
 import pandas as pd
