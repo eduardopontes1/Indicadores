@@ -25,11 +25,11 @@ def load_data():
         
         # --- TRATAMENTO DE ERROS DE DADOS ---
         # 1. Remove linhas onde o Gestor ou Indicador estão totalmente vazios
-        df = df.dropna(subset=['Gestor', 'Indicador', 'Quad'])
+        df = df.dropna(subset=['Gestor', 'Indicador', 'Quadrimestre'])
         
         # 2. Garante que tudo na coluna Gestor seja Texto (corrige o seu erro do sorted)
         df['Gestor'] = df['Gestor'].astype(str)
-        df['Quad'] = df['Quad'].astype(str)
+        df['Quadrimestre'] = df['Quadrimestre'].astype(str)
         
         # 3. Garante que Meta e Valor sejam números (converte erros em 0)
         df['Meta'] = pd.to_numeric(df['Meta'], errors='coerce').fillna(0)
@@ -50,11 +50,11 @@ if not df.empty:
     lista_gestores = sorted(df['Gestor'].unique())
     gestores = st.sidebar.multiselect("Selecione os Gestores", options=lista_gestores, default=lista_gestores)
     
-    lista_quads = sorted(df['Quad'].unique(), reverse=True)
-    anos = st.sidebar.multiselect("Períodos", options=lista_quads, default=lista_quads[0] if lista_quads else None)
+    lista_Quadrimestres = sorted(df['Quadrimestre'].unique(), reverse=True)
+    anos = st.sidebar.multiselect("Períodos", options=lista_Quadrimestres, default=lista_Quadrimestres[0] if lista_Quadrimestres else None)
 
     # Filtragem
-    df_filtered = df[(df['Gestor'].isin(gestores)) & (df['Quad'].isin(anos))].copy()
+    df_filtered = df[(df['Gestor'].isin(gestores)) & (df['Quadrimestre'].isin(anos))].copy()
 
     # --- KPIs ---
     st.title("📊 Monitoramento de Metas TRE-CE")
@@ -84,7 +84,7 @@ if not df.empty:
         df_historico['Chave'] = df_historico['Gestor'] + " | " + df_historico['Indicador']
 
         for chave in sorted(df_historico['Chave'].unique()):
-            data_plot = df_historico[df_historico['Chave'] == chave].sort_values('Quad')
+            data_plot = df_historico[df_historico['Chave'] == chave].sort_values('Quadrimestre')
             
             with st.container():
                 st.subheader(f"📈 {chave}")
@@ -93,7 +93,7 @@ if not df.empty:
                 colors = ['#27ae60' if s else '#e67e22' for s in data_plot['Sucesso']]
                 
                 fig.add_trace(go.Bar(
-                    x=data_plot['Quad'], y=data_plot['Valor'],
+                    x=data_plot['Quadrimestre'], y=data_plot['Valor'],
                     marker_color=colors, text=data_plot['Valor'],
                     textposition='auto', name="Realizado"
                 ))
