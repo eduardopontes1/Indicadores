@@ -31,8 +31,8 @@ def verificar_login():
             st.markdown("<br><br>", unsafe_allow_html=True)
             st.markdown(
                 """
-                <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #4682B4;'>
-                    <h1 style='color: #4682B4; font-size: 2rem;'>🔒 Acesso Restrito</h1>
+                <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #666;'>
+                    <h1 style='color: #666; font-size: 2rem;'>🔒 Acesso Restrito</h1>
                     <p style='color: #666;'>Painel de Monitoramento Estratégico TRE-CE</p>
                 </div>
                 <br>
