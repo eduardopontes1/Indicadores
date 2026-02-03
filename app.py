@@ -219,8 +219,9 @@ with tab1:
                             meta_val = dado_plot['Meta'].iloc[0]
                             nome_ind = dado_plot['Indicador'].iloc[0]
                             gestor_nm = dado_plot['Gestor'].iloc[0]
+                            macro_nm = dado_plot['Macro'].iloc[0] # NOVO: Pegando o Macro
                             
-                            # Cores (Usa as cores de sucesso/atencao definidas no inicio)
+                            # Cores (Usa as cores de sucesso/atencao)
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
                             textos = [formatar_valor(r['Valor'], nome_ind) for _, r in dado_plot.iterrows()]
 
@@ -253,9 +254,10 @@ with tab1:
                                     bgcolor="rgba(255,255,255,0.9)"
                                 )
 
+                                # ATUALIZADO: Título agora inclui Macrodesafio
                                 fig.update_layout(
                                     title=dict(
-                                        text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{gestor_nm}</span>",
+                                        text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{macro_nm} | {gestor_nm}</span>",
                                         font=dict(size=20, color=CORES['primaria'])
                                     ),
                                     height=380, template="plotly_white",
