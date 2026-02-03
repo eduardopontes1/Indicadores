@@ -2,25 +2,29 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# --- 1. CONFIGURAÇÃO VISUAL E CSS PREMIUM ---
+# --- 1. CONFIGURAÇÃO VISUAL E CSS ---
 st.set_page_config(
     page_title="Painel Estrategico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Paleta Corporativa (SteelBlue & Tons Neutros)
+# Paleta de Cores
 CORES = {
-    "primaria": "#4682B4",         # SteelBlue Principal
-    "secundaria": "#2C3E50",       # Azul Noturno (Texto)
-    "destaque_meta": "#FF6347",    # Tomato (Laranja avermelhado)
-    "sucesso": "#2E8B57",          # SeaGreen
-    "atencao": "#DAA520",          # GoldenRod
-    "fundo_pag": "#F4F6F9",        # Cinza Gelo (Fundo Power BI)
-    "branco": "#FFFFFF"
+    "primaria": "#4682B4",         # SteelBlue (Azul Aço)
+    "meta_linha": "#FF6347",       # Tomato
+    "texto_escuro": "#2c3e50",
+    "texto_claro": "#ffffff",
+    "sucesso_bg": "#d4edda",
+    "sucesso_text": "#155724",
+    "atencao_bg": "#fff3cd",
+    "atencao_text": "#856404",
+    "neutro_bg": "#e2e3e5",
+    "neutro_text": "#383d41",
+    "fundo_pag": "#F4F6F8"
 }
 
-# CSS PERSONALIZADO (Design System)
+# CSS PERSONALIZADO (Sombras, Cores e Fontes)
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
@@ -28,77 +32,58 @@ st.markdown(f"""
     html, body, [class*="css"] {{
         font-family: 'Montserrat', sans-serif !important;
         background-color: {CORES['fundo_pag']};
-        color: {CORES['secundaria']};
+        color: {CORES['texto_escuro']};
     }}
 
-    /* Títulos com Sombra Leve */
+    /* Títulos com leve sombra para destaque */
     h1 {{ 
         font-size: 2.5rem !important; 
         font-weight: 700 !important; 
         color: {CORES['primaria']};
         text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     }}
-    h2, h3 {{ 
-        color: {CORES['secundaria']}; 
-        font-weight: 600;
-    }}
+    h2 {{ font-size: 1.8rem !important; font-weight: 600 !important; }}
+    h3 {{ font-size: 1.4rem !important; font-weight: 600 !important; }}
 
-    /* ESTILO DOS FILTROS (Imitando Dropdown Power BI) */
-    .stMultiSelect label, .stSelectbox label {{
-        color: {CORES['primaria']} !important;
-        font-weight: 600 !important;
-        font-size: 1.1rem !important;
-    }}
-    
-    .stMultiSelect div[data-baseweb="select"] {{
+    /* Customização dos Filtros (Estilo Power BI Suspenso) */
+    .stMultiSelect, .stSelectbox {{
         background-color: white;
         border-radius: 5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        border: 1px solid #d1d5db;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }}
-
-    /* Botão Atualizar (Mesma cor dos filtros) */
+    
+    /* Botão Atualizar (Cor SteelBlue) */
     div.stButton > button {{
-        background-color: {CORES['primaria']};
-        color: white;
+        background-color: {CORES['primaria']} !important;
+        color: white !important;
         border: none;
         border-radius: 5px;
         padding: 0.5rem 1rem;
         font-weight: 600;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         width: 100%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: all 0.3s;
     }}
     div.stButton > button:hover {{
-        background-color: #315f85; /* SteelBlue mais escuro */
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        color: white;
+        background-color: #315f85 !important; /* SteelBlue mais escuro no hover */
     }}
 
-    /* CARDS DE KPI */
+    /* Cards de KPI */
     div[data-testid="stMetric"] {{
         background-color: white;
         border-left: 6px solid {CORES['primaria']};
-        padding: 15px 20px;
-        border-radius: 8px;
+        padding: 15px;
+        border-radius: 6px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.08);
     }}
-    
-    /* Container dos Gráficos */
-    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {{
-        background-color: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }}
+    div[data-testid="stMetricLabel"] {{ font-size: 1.1rem !important; font-weight: 500; }}
+    div[data-testid="stMetricValue"] {{ font-size: 2.2rem !important; font-weight: 700; color: {CORES['primaria']}; }}
 
-    /* Ajuste de Espaçamento Topo */
+    /* Ajuste de margens */
     .block-container {{ padding-top: 2rem; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. MOTOR DE DADOS ---
+# --- 2. CARREGAMENTO DE DADOS ---
 @st.cache_data(ttl=60)
 def load_data():
     sheet_id = "1Fvo48kFkoTdR9vacDjdasrh6s2MBxcGGFiS53EZcjb8"
@@ -109,26 +94,33 @@ def load_data():
         df.columns = df.columns.str.strip()
         cols_map = {'Semestre': 'Quad', 'Periodo': 'Quad', 'Período': 'Quad'}
         df = df.rename(columns=lambda x: cols_map.get(x, x))
+        
+        # Validação mínima
+        if 'Quad' not in df.columns: return pd.DataFrame()
+
         df = df.dropna(subset=['Gestor', 'Indicador', 'Quad'])
         
+        # Conversão para texto
         df['Gestor'] = df['Gestor'].astype(str)
         df['Indicador'] = df['Indicador'].astype(str)
         df['Quad'] = df['Quad'].astype(str)
         if 'Macro' not in df.columns: df['Macro'] = 'Geral'
         df['Macro'] = df['Macro'].astype(str)
 
+        # Conversão numérica segura
         for col in ['Meta', 'Valor']:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         return df
-    except Exception as e:
-        st.error(f"Erro de conexao: {e}")
+    except:
         return pd.DataFrame()
 
 df = load_data()
 
+# Funções Auxiliares
 def formatar_valor(valor, nome_indicador):
-    nome_indicador = nome_indicador.lower()
-    if any(x in nome_indicador for x in ['indice', 'taxa', 'percentual', '%']):
+    nome = str(nome_indicador).lower()
+    if any(x in nome for x in ['índice', 'taxa', 'percentual', '%']):
         return f"{valor}%"
     return f"{valor}"
 
@@ -141,50 +133,48 @@ def check_meta(row):
         return valor >= meta 
     except: return False
 
-# --- 3. BARRA LATERAL (FILTROS POWER BI STYLE) ---
+# --- 3. BARRA LATERAL (FILTROS POWER BI) ---
 with st.sidebar:
-    st.title("Filtros")
-    st.markdown("Use as opcoes abaixo para segmentar a visao.")
+    st.markdown(f"<h2 style='color:{CORES['primaria']}; text-align:center;'>Filtros</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
     if not df.empty:
-        # SELETOR DE PERÍODOS DO GRÁFICO (Eixo X)
-        # Por padrão, seleciona TODOS
-        todos_periodos = sorted(df['Quad'].unique())
-        sel_eixo_x = st.multiselect(
-            "Periodos no Grafico (Barras):", 
-            todos_periodos, 
-            default=todos_periodos,
-            help="Escolha quais barras aparecem no grafico."
-        )
+        # A. SELETOR DE REFERÊNCIA (Para Texto de Status)
+        quads_unicos = sorted(df['Quad'].unique())
+        quad_atual_padrao = len(quads_unicos)-1 if quads_unicos else 0
+        quad_ref = st.selectbox("Quadrimestre de Referencia (Status):", quads_unicos, index=quad_atual_padrao)
         
-        st.write("") # Espaço
+        st.markdown("<br>", unsafe_allow_html=True)
 
-        # QUADRIMESTRE DE REFERÊNCIA (Para cálculo de meta)
-        # Pega o último selecionado no filtro acima ou o último da lista total
-        opcoes_ref = sel_eixo_x if sel_eixo_x else todos_periodos
-        idx_padrao = len(opcoes_ref)-1 if options_ref else 0
-        quad_ref = st.selectbox(
-            "Periodo de Analise (Status Meta):", 
-            opcoes_ref, 
-            index=idx_padrao
+        # B. SELETOR DE BARRAS (Para o Gráfico) - O que o usuário pediu
+        st.markdown("**Periodos no Grafico (Barras):**")
+        quads_barras = st.multiselect(
+            "Selecione os períodos visíveis:", # Label hidden via CSS trick or just keep simple
+            options=quads_unicos,
+            default=quads_unicos, # Por padrão mostra todas
+            label_visibility="collapsed"
         )
-        
+        if not quads_barras:
+            st.warning("Selecione ao menos um período para o gráfico.")
+            quads_barras = quads_unicos # Fallback
+
         st.markdown("---")
 
-        # FILTROS HIERÁRQUICOS
+        # C. FILTROS HIERÁRQUICOS
         all_macros = sorted(df['Macro'].unique())
         sel_macro = st.multiselect("Macrodesafio:", all_macros, default=all_macros)
         
-        opcoes_gestor = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
-        sel_gestor = st.multiselect("Unidade / Gestor:", opcoes_gestor, default=opcoes_gestor)
+        gestores_filtrados = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
+        sel_gestor = st.multiselect("Unidade / Gestor:", gestores_filtrados, default=gestores_filtrados)
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("ATUALIZAR DADOS"):
+        st.markdown("---")
+        # Botão de Atualizar (Estilizado via CSS acima)
+        if st.button("Atualizar Dados"):
             st.cache_data.clear()
             st.rerun()
 
-# --- 4. CORPO DO DASHBOARD ---
+# --- 4. CORPO PRINCIPAL ---
+# Aplica filtros de Gestor e Macro
 df_filtered = df[
     (df['Gestor'].isin(sel_gestor)) & 
     (df['Macro'].isin(sel_macro))
@@ -192,163 +182,184 @@ df_filtered = df[
 
 st.title("Painel de Monitoramento Estrategico")
 
-# Abas Limpas
-tab1, tab2 = st.tabs(["DASHBOARD GRAFICO", "RELATORIO DETALHADO"])
+# Abas
+tab1, tab2 = st.tabs(["Painel Grafico", "Relatorio Detalhado"])
 
+# === ABA 1: GRÁFICOS ===
 with tab1:
-    if df_filtered.empty or not sel_eixo_x:
-        st.info("Selecione os filtros na barra lateral para visualizar os dados.")
+    if df_filtered.empty:
+        st.info("Utilize os filtros laterais para carregar os dados.")
     else:
-        # KPIs do Período de Referência
+        # KPIs do Topo (Baseado na Referência)
         df_kpi = df_filtered[df_filtered['Quad'] == quad_ref].copy()
-        
-        total = 0
-        sucesso = 0
-        falha = 0
-        
         if not df_kpi.empty:
-            df_kpi['Atingiu'] = df_kpi.apply(check_meta, axis=1)
+            df_kpi['Sucesso'] = df_kpi.apply(check_meta, axis=1)
             total = len(df_kpi)
-            sucesso = df_kpi['Atingiu'].sum()
-            falha = total - sucesso
+            batidas = df_kpi['Sucesso'].sum()
+            restantes = total - batidas
             
-        k1, k2, k3 = st.columns(3)
-        k1.metric(f"Indicadores em {quad_ref}", total)
-        k2.metric("Meta Atingida", int(sucesso))
-        k3.metric("Nao Atingida", int(falha), delta_color="inverse")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            c1.metric(f"Indicadores ({quad_ref})", total)
+            c2.metric("Meta Atingida", int(batidas))
+            c3.metric("Meta Nao Atingida", int(restantes), delta_color="inverse")
+            st.markdown("---")
 
-        # --- LOOP DE GRÁFICOS ---
+        # Loop de Gráficos (Lado a Lado)
         df_filtered['Chave'] = df_filtered['Gestor'] + " - " + df_filtered['Indicador']
-        indicadores = sorted(df_filtered['Chave'].unique())
+        lista_indicadores = sorted(df_filtered['Chave'].unique())
 
-        for i in range(0, len(indicadores), 2):
+        for i in range(0, len(lista_indicadores), 2):
             cols = st.columns(2)
             for j in range(2):
-                if i + j < len(indicadores):
-                    chave = indicadores[i+j]
+                if i + j < len(lista_indicadores):
+                    chave = lista_indicadores[i+j]
                     with cols[j]:
-                        # Filtra apenas os períodos selecionados no Eixo X
-                        dado_plot = df_filtered[
-                            (df_filtered['Chave'] == chave) & 
-                            (df_filtered['Quad'].isin(sel_eixo_x))
-                        ].sort_values('Quad')
+                        # Dados Gerais do Indicador
+                        dado_full = df_filtered[df_filtered['Chave'] == chave]
+                        
+                        # Filtra apenas as barras selecionadas pelo usuário
+                        dado_plot = dado_full[dado_full['Quad'].isin(quads_barras)].sort_values('Quad')
                         
                         if not dado_plot.empty:
                             meta_val = dado_plot['Meta'].iloc[0]
-                            nome_ind = dado_plot['Indicador'].iloc[0]
-                            gestor_nm = dado_plot['Gestor'].iloc[0]
-                            
-                            # Cores e Textos
-                            cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
-                            textos = [formatar_valor(r['Valor'], nome_ind) for _, r in dado_plot.iterrows()]
+                            ind_nome = dado_plot['Indicador'].iloc[0]
+                            gestor_nome = dado_plot['Gestor'].iloc[0]
+                            macro_nome = dado_plot['Macro'].iloc[0]
 
-                            # GRÁFICO
-                            with st.container(): # Card branco automático pelo CSS
+                            # Cores (Verde SteelBlue ou Tomato Dourado)
+                            cores = ["#2E8B57" if check_meta(row) else "#DAA520" for _, row in dado_plot.iterrows()]
+                            
+                            # Textos formatados
+                            textos = [formatar_valor(row['Valor'], ind_nome) for _, row in dado_plot.iterrows()]
+
+                            # Container "Card"
+                            with st.container(border=True):
                                 fig = go.Figure()
 
+                                # Gráfico de Barras
                                 fig.add_trace(go.Bar(
-                                    x=dado_plot['Quad'], y=dado_plot['Valor'],
-                                    marker_color=cores, text=textos,
+                                    x=dado_plot['Quad'],
+                                    y=dado_plot['Valor'],
+                                    marker_color=cores,
+                                    text=textos,
                                     textposition='auto',
                                     textfont=dict(size=18, color='white', family="Montserrat", weight="bold"),
-                                    hoverinfo='none'
+                                    name="Realizado",
+                                    hoverinfo='none' # Remove tooltip interativo
                                 ))
 
-                                # Linha Meta
+                                # Linha da Meta (Tomato Tracejada)
                                 fig.add_shape(
-                                    type="line", x0=-0.5, x1=len(dado_plot)-0.5,
+                                    type="line",
+                                    x0=-0.5, x1=len(dado_plot)-0.5,
                                     y0=meta_val, y1=meta_val,
-                                    line=dict(color=CORES['destaque_meta'], width=3, dash="dash")
+                                    line=dict(color=CORES['meta_linha'], width=3, dash="dash")
                                 )
                                 
-                                txt_meta = formatar_valor(meta_val, nome_ind)
+                                # Texto da Meta
+                                meta_txt = formatar_valor(meta_val, ind_nome)
                                 fig.add_annotation(
                                     x=len(dado_plot)-0.5, y=meta_val,
-                                    text=f" META: {txt_meta} ",
-                                    showarrow=False, xanchor="right", yshift=10,
-                                    font=dict(color=CORES['destaque_meta'], size=14, weight="bold"),
-                                    bgcolor="rgba(255,255,255,0.9)"
+                                    text=f" META: {meta_txt} ",
+                                    showarrow=False,
+                                    yshift=10,
+                                    xanchor="right",
+                                    font=dict(color=CORES['meta_linha'], size=14, weight="bold")
                                 )
 
+                                # Layout Estático
                                 fig.update_layout(
                                     title=dict(
-                                        text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{gestor_nm}</span>",
+                                        text=f"<b>{ind_nome}</b><br><span style='font-size:14px; color:#666;'>{macro_nome} | {gestor_nome}</span>",
                                         font=dict(size=18, color=CORES['primaria'])
                                     ),
-                                    height=380, template="plotly_white",
-                                    dragmode=False, # Sem Zoom
-                                    xaxis=dict(fixedrange=True, type='category', tickfont=dict(size=14, weight="bold"), showgrid=False),
+                                    height=380,
+                                    template="plotly_white",
+                                    dragmode=False, # Trava zoom
+                                    xaxis=dict(fixedrange=True, type='category', tickfont=dict(size=14, weight="bold")),
                                     yaxis=dict(fixedrange=True, showgrid=True, gridcolor='#eee', tickfont=dict(size=12)),
                                     margin=dict(l=20, r=20, t=60, b=20),
                                     bargap=0.3
                                 )
-                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+                                st.plotly_chart(fig, use_container_width=True, config={'staticPlot': False, 'displayModeBar': False})
 
-                                # Status Box
-                                dado_ref_linha = dado_plot[dado_plot['Quad'] == quad_ref]
+                                # Status Box (Baseado no Quad de Referência)
+                                dado_ref_linha = dado_full[dado_full['Quad'] == quad_ref]
+                                
                                 if not dado_ref_linha.empty:
-                                    row_r = dado_ref_linha.iloc[0]
-                                    if check_meta(row_r):
-                                        st.success(f"✅ {quad_ref}: Meta Atingida")
+                                    row_ref = dado_ref_linha.iloc[0]
+                                    val_ref_fmt = formatar_valor(row_ref['Valor'], ind_nome)
+                                    if check_meta(row_ref):
+                                        st.markdown(f"""
+                                        <div style="background-color:{CORES['sucesso_bg']}; color:{CORES['sucesso_text']}; 
+                                        padding:10px; border-radius:5px; text-align:center; font-weight:bold; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                        META ATINGIDA EM {quad_ref} (Result: {val_ref_fmt})
+                                        </div>
+                                        """, unsafe_allow_html=True)
                                     else:
-                                        st.warning(f"⚠️ {quad_ref}: Nao Atingida")
+                                        st.markdown(f"""
+                                        <div style="background-color:{CORES['atencao_bg']}; color:{CORES['atencao_text']}; 
+                                        padding:10px; border-radius:5px; text-align:center; font-weight:bold; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                        NAO ATINGIU A META EM {quad_ref} (Result: {val_ref_fmt})
+                                        </div>
+                                        """, unsafe_allow_html=True)
                                 else:
-                                    st.info(f"ℹ️ Sem dados em {quad_ref}")
+                                    st.markdown(f"""
+                                    <div style="background-color:{CORES['neutro_bg']}; color:{CORES['neutro_text']}; 
+                                    padding:10px; border-radius:5px; text-align:center;">
+                                    Sem dados lancados para {quad_ref}
+                                    </div>
+                                    """, unsafe_allow_html=True)
 
-# --- ABA 2: RELATÓRIO ---
+# === ABA 2: RELATÓRIO ===
 with tab2:
-    st.markdown(f"### Status Geral - Referencia: {quad_ref}")
+    st.header(f"Status Detalhado: {quad_ref}")
     st.markdown("---")
     
-    lst_sim = []
-    lst_nao = []
-    lst_sem = []
+    lista_ok = []
+    lista_nok = []
+    lista_sem_dados = []
     
-    # Processamento para Relatório
-    todos_indicadores_filtrados = df_filtered['Chave'].unique()
-    
-    for chave in todos_indicadores_filtrados:
-        # Pega a linha específica do quadrimestre de referência
-        linha = df_filtered[(df_filtered['Chave'] == chave) & (df_filtered['Quad'] == quad_ref)]
+    # Itera sobre TODOS os indicadores filtrados
+    for chave in lista_indicadores:
+        dado_ind = df_filtered[df_filtered['Chave'] == chave]
+        dado_ref = dado_ind[dado_ind['Quad'] == quad_ref]
         
-        # Pega info geral do indicador (mesmo se não tiver dado no quad atual, para saber quem é)
-        info_ind = df_filtered[df_filtered['Chave'] == chave].iloc[0]
-        macro_nm = info_ind['Macro']
-        gestor_nm = info_ind['Gestor']
-        ind_nm = info_ind['Indicador']
+        # Pega dados cadastrais (usa a primeira linha disponível do indicador)
+        base = dado_ind.iloc[0]
+        macro = base['Macro']
+        gestor = base['Gestor']
+        ind = base['Indicador']
         
-        texto_base = f"**{macro_nm}** > **{gestor_nm}** | {ind_nm}"
-        
-        if not linha.empty:
-            row = linha.iloc[0]
-            val_f = formatar_valor(row['Valor'], ind_nm)
-            meta_f = formatar_valor(row['Meta'], ind_nm)
-            detalhe = f"{texto_base} <br><span style='font-size:0.9rem; color:gray'>Resultado: {val_f} | Meta: {meta_f}</span>"
-            
-            if check_meta(row): lst_sim.append(detalhe)
-            else: lst_nao.append(detalhe)
+        if dado_ref.empty:
+            lista_sem_dados.append(f"**[{macro}] {gestor}** - {ind}")
         else:
-            lst_sem.append(texto_base)
-
-    # Exibição em Colunas
-    c1, c2, c3 = st.columns(3)
-    
-    with c1:
-        st.markdown(f"<div style='background-color:#d4edda; padding:10px; border-radius:5px; color:#155724; font-weight:bold; text-align:center'>✅ METAS ATINGIDAS ({len(lst_sim)})</div>", unsafe_allow_html=True)
-        st.write("")
-        for i in lst_sim: 
-            st.markdown(f"<div style='background:white; padding:10px; margin-bottom:5px; border-radius:5px; box-shadow:0 1px 2px rgba(0,0,0,0.1)'>{i}</div>", unsafe_allow_html=True)
+            row = dado_ref.iloc[0]
+            val_fmt = formatar_valor(row['Valor'], ind)
+            meta_fmt = formatar_valor(row['Meta'], ind)
             
-    with c2:
-        st.markdown(f"<div style='background-color:#fff3cd; padding:10px; border-radius:5px; color:#856404; font-weight:bold; text-align:center'>⚠️ NAO ATINGIDAS ({len(lst_nao)})</div>", unsafe_allow_html=True)
-        st.write("")
-        for i in lst_nao: 
-            st.markdown(f"<div style='background:white; padding:10px; margin-bottom:5px; border-radius:5px; box-shadow:0 1px 2px rgba(0,0,0,0.1)'>{i}</div>", unsafe_allow_html=True)
-
-    with c3:
-        st.markdown(f"<div style='background-color:#e2e3e5; padding:10px; border-radius:5px; color:#383d41; font-weight:bold; text-align:center'>ℹ️ SEM DADOS NO PERIODO ({len(lst_sem)})</div>", unsafe_allow_html=True)
-        st.write("")
-        for i in lst_sem: 
-            st.markdown(f"<div style='background:white; padding:10px; margin-bottom:5px; border-radius:5px; box-shadow:0 1px 2px rgba(0,0,0,0.1)'>{i}</div>", unsafe_allow_html=True)
+            texto = f"**[{macro}] {gestor}** - {ind} <br> *Resultado: {val_fmt} | Meta: {meta_fmt}*"
+            
+            if check_meta(row): lista_ok.append(texto)
+            else: lista_nok.append(texto)
+    
+    col_a, col_b, col_c = st.columns(3)
+    
+    with col_a:
+        st.subheader("Bateram a Meta")
+        if lista_ok:
+            for i in lista_ok: st.success(i, icon=None) # Sem icone padrao
+        else: st.write("-")
+        
+    with col_b:
+        st.subheader("Nao Bateram a Meta")
+        if lista_nok:
+            for i in lista_nok: st.warning(i, icon=None)
+        else: st.write("-")
+        
+    with col_c:
+        st.subheader("Sem Dados no Periodo")
+        if lista_sem_dados:
+            for i in lista_sem_dados: 
+                st.markdown(f"<div style='padding:10px; background-color:white; border-radius:5px; margin-bottom:10px; border-left:4px solid gray;'>{i}</div>", unsafe_allow_html=True)
+        else: st.write("Todos os indicadores possuem lancamento.")
