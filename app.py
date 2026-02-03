@@ -2,331 +2,272 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# --- 1. CONFIGURAÇÃO VISUAL E CSS PROFISSIONAL ---
+# --- 1. CONFIGURAÇÃO VISUAL ---
 st.set_page_config(
-    page_title="Painel Estratégico",
+    page_title="Monitoramento Estratégico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Cores baseadas nas imagens de referência
+# Paleta SteelBlue (Azul Aço e Tons Profissionais)
 CORES = {
-    "verde_sucesso": "#00a65a",    # Verde sólido forte
-    "amarelo_atencao": "#f1c40f",  # Amarelo/Dourado
-    "meta_linha": "#d35400",       # Laranja escuro/Dourado para a linha
-    "texto_escuro": "#2c3e50",
-    "texto_claro": "#ffffff",
-    "fundo_pag": "#ecf0f5",        # Cinza claro corporativo
-    "fundo_card": "#ffffff"
+    "primaria": "#4682B4",         # SteelBlue
+    "secundaria": "#2c3e50",       # Azul Escuro (Texto)
+    "sucesso": "#2E8B57",          # SeaGreen (Verde mais sóbrio)
+    "atencao": "#DAA520",          # GoldenRod (Substitui o vermelho/laranja)
+    "meta_linha": "#1e3799",       # Azul Royal Escuro para a linha da meta
+    "fundo": "#F0F2F6"             # Cinza muito suave
 }
 
-# CSS para forçar fonte Montserrat, tamanhos maiores e remover estilo padrão
+# CSS para aumentar fontes (Desktop Friendly)
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
 
     html, body, [class*="css"] {{
         font-family: 'Montserrat', sans-serif !important;
-        color: {CORES['texto_escuro']};
-        background-color: {CORES['fundo_pag']};
+        background-color: {CORES['fundo']};
+        color: {CORES['secundaria']};
     }}
 
-    /* Aumentando títulos */
-    h1 {{ font-size: 2.2rem !important; font-weight: 700 !important; }}
-    h2 {{ font-size: 1.8rem !important; font-weight: 600 !important; }}
-    h3 {{ font-size: 1.4rem !important; font-weight: 600 !important; }}
-
-    /* Estilo dos filtros multiselect */
-    .stMultiSelect label {{
-        font-size: 1.1rem !important;
-        font-weight: 600 !important;
-    }}
-
-    /* Estilo das caixas de mensagem (Bateu/Não bateu) */
-    .status-box-success {{
-        background-color: #dff0d8;
-        border-left: 5px solid {CORES['verde_sucesso']};
-        padding: 15px;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: #3c763d;
-    }}
-    .status-box-fail {{
-        background-color: #fcf8e3;
-        border-left: 5px solid {CORES['amarelo_atencao']};
-        padding: 15px;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: #8a6d3b;
-    }}
+    /* Aumentando Títulos */
+    h1 {{ font-size: 2.5rem !important; font-weight: 800 !important; color: {CORES['primaria']}; }}
+    h2 {{ font-size: 2.0rem !important; font-weight: 700 !important; }}
+    h3 {{ font-size: 1.5rem !important; font-weight: 600 !important; }}
     
-    /* Ajuste fino no container principal */
-    .block-container {{ padding-top: 1rem; }}
+    /* Aumentando textos dos filtros e widgets */
+    .stMultiSelect, .stSelectbox {{ font-size: 1.2rem !important; }}
+    label {{ font-size: 1.3rem !important; font-weight: 600 !important; color: {CORES['primaria']} !important; }}
+    
+    /* Estilo dos Cards de KPI */
+    div[data-testid="stMetric"] {{
+        background-color: #ffffff;
+        border-left: 8px solid {CORES['primaria']};
+        padding: 20px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        border-radius: 5px;
+    }}
+    /* Aumenta o número dentro do card */
+    div[data-testid="stMetricValue"] {{ font-size: 2.2rem !important; }}
+    
+    /* Status Box abaixo do gráfico */
+    .status-box {{
+        padding: 15px;
+        border-radius: 5px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        text-align: center;
+        margin-top: 10px;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CARREGAMENTO DE DADOS (ROBUSTO) ---
+# --- 2. CARREGAMENTO DE DADOS ---
 @st.cache_data(ttl=60)
 def load_data():
-    # SUBSTITUA PELO SEU ID CORRETO SE MUDOU
     sheet_id = "1Fvo48kFkoTdR9vacDjdasrh6s2MBxcGGFiS53EZcjb8"
     url_csv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
 
     try:
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip()
-        
         cols_map = {'Semestre': 'Quad', 'Periodo': 'Quad', 'Período': 'Quad'}
         df = df.rename(columns=lambda x: cols_map.get(x, x))
-
-        # Verifica colunas essenciais
-        required_cols = ['Gestor', 'Indicador', 'Quad', 'Meta', 'Valor', 'Sentido']
-        if not all(col in df.columns for col in required_cols):
-            st.error(f"A planilha precisa ter as colunas: {', '.join(required_cols)}")
-            return pd.DataFrame()
-
         df = df.dropna(subset=['Gestor', 'Indicador', 'Quad'])
+        
+        # Converte tudo para string ou numero
         df['Gestor'] = df['Gestor'].astype(str)
         df['Indicador'] = df['Indicador'].astype(str)
         df['Quad'] = df['Quad'].astype(str)
-        
-        # Garante que Macro existe
         if 'Macro' not in df.columns: df['Macro'] = 'Geral'
         df['Macro'] = df['Macro'].astype(str)
 
         for col in ['Meta', 'Valor']:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-            
         return df
     except Exception as e:
-        st.error(f"Erro na conexão: {e}")
+        st.error(f"Erro de conexão: {e}")
         return pd.DataFrame()
 
 df = load_data()
 
-# Função para verificar meta
 def check_meta(row):
     try:
         meta, valor = float(row['Meta']), float(row['Valor'])
         sentido = str(row.get('Sentido', '')).lower()
         if 'superar' in sentido or '>=' in sentido: return valor >= meta
         elif 'manter' in sentido or '<=' in sentido: return valor <= meta
-        return valor >= meta # Default
+        return valor >= meta 
     except: return False
 
-# --- 3. BARRA LATERAL (FILTROS AVANÇADOS) ---
+# --- 3. BARRA LATERAL (FILTROS) ---
 with st.sidebar:
-    st.header("Filtros de Visualização")
-    st.write("Use as caixas para pesquisar ou selecionar.")
-    st.markdown("---")
+    st.markdown(f"<h2 style='color:{CORES['primaria']}'>Filtros</h2>", unsafe_allow_html=True)
     
     if not df.empty:
-        # 3.1. Seletor do Quadrimestre de Referência (FOCO)
-        quads_unicos = sorted(df['Quad'].unique())
-        # Tenta pegar o último como padrão
-        quad_padrao_idx = len(quads_unicos) - 1 if quads_unicos else 0
-        quad_referencia = st.selectbox(
-            "Quadrimestre de Referência (Foco da Análise):",
-            quads_unicos,
-            index=quad_padrao_idx,
-            help="A mensagem de 'Bateu/Não Bateu' será baseada neste período."
-        )
+        # Seletor de Referência (Foco)
+        quads = sorted(df['Quad'].unique())
+        quad_ref = st.selectbox("Quadrimestre de Referência (Foco):", quads, index=len(quads)-1)
         st.markdown("---")
 
-        # 3.2. Filtros Multiselect (Com pesquisa e "Selecionar Todos" padrão)
-        # Macrodesafio
-        macros_disp = sorted(df['Macro'].unique())
-        sel_macro = st.multiselect("Filtrar Macrodesafio:", macros_disp, default=macros_disp)
+        # Filtros Multiselect "Suspensos"
+        # 1. Macrodesafio
+        all_macros = sorted(df['Macro'].unique())
+        sel_macro = st.multiselect("Selecione Macrodesafio:", all_macros, default=all_macros)
         
-        # Gestor
-        gestores_disp = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique()) if sel_macro else []
-        sel_gestor = st.multiselect("Filtrar Gestão (Gestor):", gestores_disp, default=gestores_disp)
+        # 2. Gestor (Filtrado pelo Macro)
+        filtered_gestor_options = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
+        sel_gestor = st.multiselect("Selecione Unidade/Gestor:", filtered_gestor_options, default=filtered_gestor_options)
         
-        # Indicador (Opcional, para refinamento)
-        filtros_ativos = df['Gestor'].isin(sel_gestor) & df['Macro'].isin(sel_macro)
-        indicadores_disp = sorted(df[filtros_ativos]['Indicador'].unique()) if not filtros_ativos.empty else []
-        sel_indicador = st.multiselect("Filtrar Indicadores Específicos:", indicadores_disp, default=indicadores_disp)
-
-        # Botão de Atualizar
-        st.markdown("---")
-        if st.button("Recarregar Dados da Planilha", type="primary"):
+        # Botão Limpar Cache
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Atualizar Base", type="secondary"):
             st.cache_data.clear()
             st.rerun()
-    else:
-        st.warning("Sem dados para carregar filtros.")
-        st.stop()
 
-# --- 4. CORPO PRINCIPAL (ABAS) ---
-
-# Filtragem Global
+# --- 4. CORPO DO DASHBOARD ---
 df_filtered = df[
     (df['Gestor'].isin(sel_gestor)) & 
-    (df['Macro'].isin(sel_macro)) &
-    (df['Indicador'].isin(sel_indicador))
+    (df['Macro'].isin(sel_macro))
 ].copy()
 
-st.title("Painel de Monitoramento Estratégico")
+st.title("Painel de Metas | TRE-CE")
 
 # Criação das Abas
-tab_graficos, tab_relatorio = st.tabs(["📊 Painel Gráfico Detalhado", "📑 Relatório Gerencial (Listas)"])
+tab1, tab2 = st.tabs(["VISÃO GRÁFICA DETALHADA", "RELATÓRIO DE LISTAGEM"])
 
-# --- ABA 1: GRÁFICOS ---
-with tab_graficos:
+with tab1:
     if df_filtered.empty:
-        st.warning("⚠️ Nenhum indicador selecionado. Por favor, marque as opções nos filtros laterais.")
+        st.warning("⚠️ Selecione ao menos um Gestor ou Macrodesafio nos filtros laterais.")
     else:
-        st.write(f"Visualizando histórico completo. Análise de meta focada em: **{quad_referencia}**")
-        st.markdown("---")
-
-        # Agrupa por chave única para gerar um gráfico por indicador
-        df_filtered['ChaveUnica'] = df_filtered['Macro'] + " | " + df_filtered['Gestor'] + " | " + df_filtered['Indicador']
-        indicadores_unicos = df_filtered['ChaveUnica'].unique()
-
-        for chave in indicadores_unicos:
-            # Separa os dados deste indicador específico
-            dado_ind = df_filtered[df_filtered['ChaveUnica'] == chave].sort_values('Quad')
+        # KPIs do Quadrimestre de Referência
+        df_ref = df_filtered[df_filtered['Quad'] == quad_ref].copy()
+        if not df_ref.empty:
+            df_ref['Atingiu'] = df_ref.apply(check_meta, axis=1)
             
-            # Informações do cabeçalho do gráfico
-            macro_atual = dado_ind['Macro'].iloc[0]
-            gestor_atual = dado_ind['Gestor'].iloc[0]
-            nome_indicador = dado_ind['Indicador'].iloc[0]
-            meta_valor = dado_ind['Meta'].iloc[0]
+            total = len(df_ref)
+            sucesso = df_ref['Atingiu'].sum()
+            falha = total - sucesso
             
-            # Determina cores baseado se bateu a meta em cada período histórico
-            cores_barras = [CORES['verde_sucesso'] if check_meta(row) else CORES['amarelo_atencao'] for _, row in dado_ind.iterrows()]
+            k1, k2, k3 = st.columns(3)
+            k1.metric(f"Total de Indicadores ({quad_ref})", total)
+            k2.metric("Atingiram a Meta", int(sucesso))
+            k3.metric("Não Atingiram", int(falha), delta_color="inverse")
+            st.markdown("---")
 
-            # --- CONSTRUÇÃO DO GRÁFICO PLOTLY (ESTILO REFERÊNCIA) ---
-            fig = go.Figure()
+        # --- LOOP DE GRÁFICOS ---
+        df_filtered['Chave'] = df_filtered['Gestor'] + " - " + df_filtered['Indicador']
+        indicadores = sorted(df_filtered['Chave'].unique())
 
-            # 1. Adiciona as Barras
-            fig.add_trace(go.Bar(
-                x=dado_ind['Quad'],
-                y=dado_ind['Valor'],
-                marker_color=cores_barras,
-                text=dado_ind['Valor'], # Valor dentro da barra
-                textposition='auto',
-                textfont=dict(color='white', size=14, weight='bold'), # Texto branco e negrito
-                name='Resultado',
-                hoverinfo='x+y+text'
-            ))
-
-            # 2. Linha da Meta (Pontilhada Dourada com Texto)
-            fig.add_shape(
-                type="line", line=dict(color=CORES['meta_linha'], width=3, dash="dash"),
-                x0=-0.5, x1=len(dado_ind['Quad'])-0.5, y0=meta_valor, y1=meta_valor,
-                xref='x', yref='y'
-            )
-            # Rótulo escrito "META: X" ao lado da linha
-            fig.add_annotation(
-                x=len(dado_ind['Quad'])-0.5, y=meta_valor,
-                text=f"META: {meta_valor}",
-                showarrow=False,
-                xanchor="right", yanchor="bottom",
-                yshift=5,
-                font=dict(color=CORES['meta_linha'], size=13, weight="bold")
-            )
-
-            # 3. Layout Profissional (Eixos visíveis, fontes grandes)
-            fig.update_layout(
-                title=dict(
-                    text=f"<b>{nome_indicador}</b><br><span style='font-size: 16px; color: gray;'>Macro: {macro_atual} | Gestor: {gestor_atual}</span>",
-                    font=dict(size=20, family="Montserrat")
-                ),
-                xaxis=dict(
-                    showgrid=False,
-                    tickfont=dict(size=14, weight='bold') # Rótulos do eixo X maiores
-                ),
-                yaxis=dict(
-                    showgrid=True, gridcolor='#e0e0e0', gridwidth=1, # Grid horizontal visível
-                    tickfont=dict(size=12),
-                    zeroline=False
-                ),
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                height=400,
-                margin=dict(t=100, b=40, l=60, r=40),
-                showlegend=False
-            )
-
-            # Exibe o gráfico em um container branco (estilo card)
-            with st.container():
-                st.plotly_chart(fig, use_container_width=True)
-
-                # --- LÓGICA DE MENSAGEM DE STATUS (BASEADA NO QUAD DE REFERÊNCIA) ---
-                # Tenta encontrar a linha correspondente ao quadrimestre selecionado no filtro
-                dado_quad_ref = dado_ind[dado_ind['Quad'] == quad_referencia]
-                
-                if not dado_quad_ref.empty:
-                    # Se tem dados para o quadrimestre de referência
-                    row_ref = dado_quad_ref.iloc[0]
-                    bateu = check_meta(row_ref)
-                    valor_ref = row_ref['Valor']
-                    
-                    if bateu:
-                        msg = f"✅ {quad_referencia.upper()}: META SUPERADA! (Resultado: {valor_ref} vs Meta: {meta_valor})"
-                        st.markdown(f'<div class="status-box-success">{msg}</div>', unsafe_allow_html=True)
-                    else:
-                        msg = f"❌ {quad_referencia.upper()}: NÃO SUPERADA! (Resultado: {valor_ref} vs Meta: {meta_valor})"
-                        st.markdown(f'<div class="status-box-fail">{msg}</div>', unsafe_allow_html=True)
-                else:
-                    # Se não tem dados para o quadrimestre de referência
-                    st.info(f"ℹ️ Sem dados lançados para o {quad_referencia} neste indicador.")
+        # Layout em 2 colunas
+        for i in range(0, len(indicadores), 2):
+            cols = st.columns(2)
             
-            st.divider()
+            for j in range(2):
+                if i + j < len(indicadores):
+                    chave = indicadores[i+j]
+                    with cols[j]:
+                        # Preparação dos dados
+                        dado_plot = df_filtered[df_filtered['Chave'] == chave].sort_values('Quad')
+                        meta_val = dado_plot['Meta'].iloc[0]
+                        
+                        # Cores das barras
+                        cores = [CORES['sucesso'] if check_meta(row) else CORES['atencao'] for _, row in dado_plot.iterrows()]
 
-# --- ABA 2: RELATÓRIO GERENCIAL ---
-with tab_relatorio:
-    st.header(f"Relatório Sintético - Foco: {quad_referencia}")
-    st.write("Listagem baseada exclusivamente no desempenho do quadrimestre de referência selecionado.")
+                        # Container com borda (Card Visual)
+                        with st.container(border=True):
+                            fig = go.Figure()
+
+                            # Barras
+                            fig.add_trace(go.Bar(
+                                x=dado_plot['Quad'],
+                                y=dado_plot['Valor'],
+                                marker_color=cores,
+                                text=dado_plot['Valor'],
+                                textposition='auto', # Texto dentro da barra
+                                textfont=dict(size=16, color='white', family="Montserrat", weight="bold"),
+                                name="Realizado"
+                            ))
+
+                            # LINHA DA META (Corrigida e Visível)
+                            fig.add_shape(
+                                type="line",
+                                x0=-0.5, x1=len(dado_plot['Quad'])-0.5, # Cobre todo o eixo X
+                                y0=meta_val, y1=meta_val,
+                                line=dict(color=CORES['meta_linha'], width=4, dash="solid")
+                            )
+                            
+                            # Rótulo da Meta
+                            fig.add_annotation(
+                                x=len(dado_plot['Quad'])-0.5, y=meta_val,
+                                text=f" META: {meta_val} ",
+                                showarrow=False,
+                                xanchor="right", yanchor="bottom",
+                                font=dict(color=CORES['meta_linha'], size=14, weight="bold"),
+                                bgcolor="rgba(255,255,255,0.8)"
+                            )
+
+                            # Layout Otimizado para "Barras Grossas"
+                            fig.update_layout(
+                                title=dict(text=f"<b>{chave}</b>", font=dict(size=18)),
+                                height=380,
+                                template="plotly_white",
+                                xaxis=dict(
+                                    type='category', # ISSO ENGROSSA AS BARRAS
+                                    tickfont=dict(size=14, weight="bold"),
+                                    showgrid=False
+                                ),
+                                yaxis=dict(
+                                    showgrid=True, 
+                                    gridcolor='#e6e6e6',
+                                    tickfont=dict(size=14)
+                                ),
+                                margin=dict(l=20, r=20, t=50, b=20),
+                                bargap=0.3 # Ajuste a grossura (0.1 = muito grosso, 0.5 = fino)
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+
+                            # Mensagem de Status (Foco no Quadrimestre de Referência)
+                            dado_atual = dado_plot[dado_plot['Quad'] == quad_ref]
+                            if not dado_atual.empty:
+                                val_atual = dado_atual['Valor'].iloc[0]
+                                bateu = check_meta(dado_atual.iloc[0])
+                                if bateu:
+                                    st.markdown(f"<div style='background-color:#d4edda; color:#155724; padding:10px; border-radius:5px; text-align:center; font-weight:bold;'>✅ META BATIDA EM {quad_ref}</div>", unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f"<div style='background-color:#fff3cd; color:#856404; padding:10px; border-radius:5px; text-align:center; font-weight:bold;'>⚠️ META NÃO ATINGIDA EM {quad_ref}</div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<div style='background-color:#e2e3e5; color:#383d41; padding:10px; border-radius:5px; text-align:center;'>ℹ️ Sem dados para {quad_ref}</div>", unsafe_allow_html=True)
+
+# --- ABA 2: RELATÓRIO (Listas) ---
+with tab2:
+    st.header(f"Resumo Gerencial: {quad_ref}")
     st.markdown("---")
-
-    if df_filtered.empty:
-         st.warning("Sem dados filtrados para gerar relatório.")
-    else:
-        # Listas para armazenar os resultados
-        bateu_meta = []
-        nao_bateu_meta = []
-        sem_dados_quad = []
-
-        # Itera sobre os indicadores únicos filtrados
-        df_filtered['ChaveSimples'] = df_filtered['Gestor'] + " | " + df_filtered['Indicador']
-        for chave in df_filtered['ChaveSimples'].unique():
-            # Pega os dados desse indicador
-            dado_total_ind = df_filtered[df_filtered['ChaveSimples'] == chave]
-            
-            # Tenta pegar apenas a linha do quadrimestre de referência
-            dado_ref = dado_total_ind[dado_total_ind['Quad'] == quad_referencia]
-
-            if dado_ref.empty:
-                sem_dados_quad.append(chave)
-            else:
-                row = dado_ref.iloc[0]
+    
+    if not df_filtered.empty:
+        # Prepara listas
+        lista_sim = []
+        lista_nao = []
+        
+        # Itera sobre os dados filtrados
+        for chave in indicadores:
+            dado = df_filtered[(df_filtered['Chave'] == chave) & (df_filtered['Quad'] == quad_ref)]
+            if not dado.empty:
+                row = dado.iloc[0]
+                texto = f"**{row['Gestor']}** - {row['Indicador']} (Realizado: {row['Valor']} | Meta: {row['Meta']})"
                 if check_meta(row):
-                    bateu_meta.append(f"**{row['Gestor']}** | {row['Indicador']} (Res: {row['Valor']})")
+                    lista_sim.append(texto)
                 else:
-                    nao_bateu_meta.append(f"**{row['Gestor']}** | {row['Indicador']} (Res: {row['Valor']} / Meta: {row['Meta']})")
-
-        # --- EXIBIÇÃO DAS LISTAS ---
+                    lista_nao.append(texto)
+        
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader(f"✅ Bateram a Meta em {quad_referencia}")
-            if bateu_meta:
-                for item in bateu_meta: st.markdown(f"- {item}")
-            else: st.write("Nenhum indicador nesta lista.")
+            st.subheader("✅ Metas Alcançadas")
+            for i in lista_sim: st.success(i)
+            if not lista_sim: st.info("Nenhum indicador neste grupo.")
             
-            st.write("") # Espaço
-            st.subheader("ℹ️ Sem dados neste período")
-            if sem_dados_quad:
-                for item in sem_dados_quad: st.markdown(f"- {item}")
-            else: st.write("Todos os indicadores filtrados possuem dados para este período.")
-
         with c2:
-            st.subheader(f"❌ Não Bateram a Meta em {quad_referencia}")
-            if nao_bateu_meta:
-                 # Usando um container para destacar a lista de atenção
-                with st.container():
-                    for item in nao_bateu_meta: 
-                        st.markdown(f"- <span style='color:{CORES['meta_linha']}'>{item}</span>", unsafe_allow_html=True)
-            else: st.success("Parabéns! Nenhum indicador ficou abaixo da meta neste período.")
+            st.subheader("⚠️ Metas Não Alcançadas")
+            for i in lista_nao: st.warning(i)
+            if not lista_nao: st.success("Todos os indicadores bateram a meta!")
