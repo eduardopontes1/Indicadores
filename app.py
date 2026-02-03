@@ -18,10 +18,10 @@ CORES = {
     "fundo": "#F4F6F9",            # Cinza Gelo
     
     # Cores para Status (Bordas e Gráficos)
-    "sucesso": "#2E8B57",          # SeaGreen (Para Borda/Gráfico)
-    "atencao": "#DAA520",          # GoldenRod (Para Borda/Gráfico)
+    "sucesso": "#2E8B57",          # SeaGreen
+    "atencao": "#DAA520",          # GoldenRod
     
-    # Cores para Caixas de Texto (Fundo e Fonte)
+    # Cores para Caixas de Texto
     "sucesso_bg": "#D4EDDA",       
     "sucesso_txt": "#155724",      
     "falha_bg": "#FFF3CD",         
@@ -166,10 +166,16 @@ with st.sidebar:
             st.rerun()
 
 # --- 4. CORPO DO DASHBOARD ---
+# Aplica filtros iniciais
 df_filtered = df[
     (df['Gestor'].isin(sel_gestor)) & 
     (df['Macro'].isin(sel_macro))
 ].copy()
+
+# === CORREÇÃO DO ERRO ===
+# Criamos a chave única AQUI, antes de entrar nas abas
+if not df_filtered.empty:
+    df_filtered['Chave'] = df_filtered['Gestor'] + " - " + df_filtered['Indicador']
 
 st.title("Painel de Monitoramento Estrategico")
 
@@ -201,7 +207,6 @@ with tab1:
         st.markdown("---")
 
         # Loop Gráficos
-        df_filtered['Chave'] = df_filtered['Gestor'] + " - " + df_filtered['Indicador']
         indicadores = sorted(df_filtered['Chave'].unique())
 
         for i in range(0, len(indicadores), 2):
@@ -219,9 +224,9 @@ with tab1:
                             meta_val = dado_plot['Meta'].iloc[0]
                             nome_ind = dado_plot['Indicador'].iloc[0]
                             gestor_nm = dado_plot['Gestor'].iloc[0]
-                            macro_nm = dado_plot['Macro'].iloc[0] # NOVO: Pegando o Macro
+                            macro_nm = dado_plot['Macro'].iloc[0]
                             
-                            # Cores (Usa as cores de sucesso/atencao)
+                            # Cores
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
                             textos = [formatar_valor(r['Valor'], nome_ind) for _, r in dado_plot.iterrows()]
 
@@ -254,7 +259,6 @@ with tab1:
                                     bgcolor="rgba(255,255,255,0.9)"
                                 )
 
-                                # ATUALIZADO: Título agora inclui Macrodesafio
                                 fig.update_layout(
                                     title=dict(
                                         text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{macro_nm} | {gestor_nm}</span>",
@@ -288,70 +292,73 @@ with tab2:
     st.markdown(f"<h3 style='color:{CORES['primaria']}'>Relatorio Sintetico - Referencia: {quad_ref}</h3>", unsafe_allow_html=True)
     st.markdown("---")
     
-    lst_sim = []
-    lst_nao = []
-    lst_sem = []
-    
-    todos_indicadores = df_filtered['Chave'].unique()
-    
-    for chave in todos_indicadores:
-        info_ind = df_filtered[df_filtered['Chave'] == chave].iloc[0]
-        macro_nm = info_ind['Macro']
-        gestor_nm = info_ind['Gestor']
-        ind_nm = info_ind['Indicador']
+    if not df_filtered.empty:
+        lst_sim = []
+        lst_nao = []
+        lst_sem = []
         
-        linha = df_filtered[(df_filtered['Chave'] == chave) & (df_filtered['Quad'] == quad_ref)]
+        todos_indicadores = sorted(df_filtered['Chave'].unique())
         
-        # HTML PURO
-        titulo_html = f"<div style='font-size:1.1rem; font-weight:bold; color:{CORES['texto']}'>{ind_nm}</div>"
-        subtitulo_html = f"<div style='font-size:0.9rem; color:#666'>📂 {macro_nm} | 👤 {gestor_nm}</div>"
+        for chave in todos_indicadores:
+            # Pega info geral (usa qualquer linha do indicador para pegar nome/gestor)
+            info_ind = df_filtered[df_filtered['Chave'] == chave].iloc[0]
+            macro_nm = info_ind['Macro']
+            gestor_nm = info_ind['Gestor']
+            ind_nm = info_ind['Indicador']
+            
+            linha = df_filtered[(df_filtered['Chave'] == chave) & (df_filtered['Quad'] == quad_ref)]
+            
+            # HTML PURO
+            titulo_html = f"<div style='font-size:1.1rem; font-weight:bold; color:{CORES['texto']}'>{ind_nm}</div>"
+            subtitulo_html = f"<div style='font-size:0.9rem; color:#666'>📂 {macro_nm} | 👤 {gestor_nm}</div>"
+            
+            if not linha.empty:
+                row = linha.iloc[0]
+                val_f = formatar_valor(row['Valor'], ind_nm)
+                meta_f = formatar_valor(row['Meta'], ind_nm)
+                
+                detalhe_html = f"""
+                <div style='margin-top:5px; font-weight:600;'>
+                    Resultado: <span style='font-size:1.2rem'>{val_f}</span> 
+                    <span style='color:#888; font-weight:400'>(Meta: {meta_f})</span>
+                </div>
+                """
+                
+                bloco_completo = f"{titulo_html}{subtitulo_html}{detalhe_html}"
+                
+                if check_meta(row): lst_sim.append(bloco_completo)
+                else: lst_nao.append(bloco_completo)
+            else:
+                bloco_sem = f"{titulo_html}{subtitulo_html}<div style='margin-top:5px; color:#888'>Sem lancamento neste periodo.</div>"
+                lst_sem.append(bloco_sem)
+
+        c1, c2, c3 = st.columns(3)
         
-        if not linha.empty:
-            row = linha.iloc[0]
-            val_f = formatar_valor(row['Valor'], ind_nm)
-            meta_f = formatar_valor(row['Meta'], ind_nm)
-            
-            detalhe_html = f"""
-            <div style='margin-top:5px; font-weight:600;'>
-                Resultado: <span style='font-size:1.2rem'>{val_f}</span> 
-                <span style='color:#888; font-weight:400'>(Meta: {meta_f})</span>
-            </div>
-            """
-            
-            bloco_completo = f"{titulo_html}{subtitulo_html}{detalhe_html}"
-            
-            if check_meta(row): lst_sim.append(bloco_completo)
-            else: lst_nao.append(bloco_completo)
-        else:
-            bloco_sem = f"{titulo_html}{subtitulo_html}<div style='margin-top:5px; color:#888'>Sem lancamento neste periodo.</div>"
-            lst_sem.append(bloco_sem)
+        with c1:
+            st.markdown(f"""
+                <div style='background-color:{CORES['sucesso_bg']}; padding:15px; border-radius:8px; border:1px solid #c3e6cb; margin-bottom:15px'>
+                    <h3 style='margin:0; color:{CORES['sucesso_txt']}; text-align:center'>✅ ATINGIRAM ({len(lst_sim)})</h3>
+                </div>
+                """, unsafe_allow_html=True)
+            for item in lst_sim:
+                st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['sucesso']}'>{item}</div>", unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns(3)
-    
-    # Aqui usamos as cores 'sucesso', 'atencao' e um cinza direto para as bordas
-    with c1:
-        st.markdown(f"""
-            <div style='background-color:{CORES['sucesso_bg']}; padding:15px; border-radius:8px; border:1px solid #c3e6cb; margin-bottom:15px'>
-                <h3 style='margin:0; color:{CORES['sucesso_txt']}; text-align:center'>✅ ATINGIRAM ({len(lst_sim)})</h3>
-            </div>
-            """, unsafe_allow_html=True)
-        for item in lst_sim:
-            st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['sucesso']}'>{item}</div>", unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"""
+                <div style='background-color:{CORES['falha_bg']}; padding:15px; border-radius:8px; border:1px solid #ffeeba; margin-bottom:15px'>
+                    <h3 style='margin:0; color:{CORES['falha_txt']}; text-align:center'>⚠️ NAO ATINGIRAM ({len(lst_nao)})</h3>
+                </div>
+                """, unsafe_allow_html=True)
+            for item in lst_nao:
+                st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['atencao']}'>{item}</div>", unsafe_allow_html=True)
 
-    with c2:
-        st.markdown(f"""
-            <div style='background-color:{CORES['falha_bg']}; padding:15px; border-radius:8px; border:1px solid #ffeeba; margin-bottom:15px'>
-                <h3 style='margin:0; color:{CORES['falha_txt']}; text-align:center'>⚠️ NAO ATINGIRAM ({len(lst_nao)})</h3>
-            </div>
-            """, unsafe_allow_html=True)
-        for item in lst_nao:
-            st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['atencao']}'>{item}</div>", unsafe_allow_html=True)
-
-    with c3:
-        st.markdown(f"""
-            <div style='background-color:{CORES['neutro_bg']}; padding:15px; border-radius:8px; border:1px solid #d6d8db; margin-bottom:15px'>
-                <h3 style='margin:0; color:{CORES['neutro_txt']}; text-align:center'>ℹ️ NAO CITADOS ({len(lst_sem)})</h3>
-            </div>
-            """, unsafe_allow_html=True)
-        for item in lst_sem:
-            st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid #6c757d'>{item}</div>", unsafe_allow_html=True)
+        with c3:
+            st.markdown(f"""
+                <div style='background-color:{CORES['neutro_bg']}; padding:15px; border-radius:8px; border:1px solid #d6d8db; margin-bottom:15px'>
+                    <h3 style='margin:0; color:{CORES['neutro_txt']}; text-align:center'>ℹ️ NAO CITADOS ({len(lst_sem)})</h3>
+                </div>
+                """, unsafe_allow_html=True)
+            for item in lst_sem:
+                st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid #6c757d'>{item}</div>", unsafe_allow_html=True)
+    else:
+        st.info("Nenhum dado selecionado.")
