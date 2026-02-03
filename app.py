@@ -1,36 +1,82 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import time
 
-# --- 1. CONFIGURAÇÃO VISUAL E CSS PREMIUM ---
+# ==============================================================================
+# 1. CONFIGURAÇÃO E AUTENTICAÇÃO
+# ==============================================================================
 st.set_page_config(
-    page_title="Painel Estrategico",
+    page_title="Acesso Restrito | TRE-CE",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed" # Começa fechado na tela de login
 )
 
-# Paleta Corporativa (SteelBlue & Tons Neutros)
-CORES = {
-    "primaria": "#4682B4",         # SteelBlue Principal
-    "primaria_dark": "#315f85",    # SteelBlue Escuro (Hover)
-    "meta_linha": "#FF6347",       # Tomato (Laranja avermelhado)
-    "texto": "#2C3E50",            # Azul Noturno
-    "fundo": "#F4F6F9",            # Cinza Gelo
-    
-    # Cores para Status (Bordas e Gráficos)
-    "sucesso": "#2E8B57",          # SeaGreen
-    "atencao": "#DAA520",          # GoldenRod
-    
-    # Cores para Caixas de Texto
-    "sucesso_bg": "#D4EDDA",       
-    "sucesso_txt": "#155724",      
-    "falha_bg": "#FFF3CD",         
-    "falha_txt": "#856404",        
-    "neutro_bg": "#E2E3E5",        
-    "neutro_txt": "#383D41"        
+# --- SISTEMA DE LOGIN ---
+# Defina aqui seus usuários e senhas
+USUARIOS = {
+    "TRE-CE": "TReCe.2026",
+    "admin": "aDMiN.2026"
 }
 
-# --- CSS AVANÇADO ---
+def verificar_login():
+    """Função que cria a tela de login antes do app"""
+    if "logado" not in st.session_state:
+        st.session_state["logado"] = False
+
+    if not st.session_state["logado"]:
+        # Design da Tela de Login
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #4682B4;'>
+                    <h1 style='color: #4682B4; font-size: 2rem;'>🔒 Acesso Restrito</h1>
+                    <p style='color: #666;'>Painel de Monitoramento Estratégico TRE-CE</p>
+                </div>
+                <br>
+                """, 
+                unsafe_allow_html=True
+            )
+            
+            usuario = st.text_input("Usuário", placeholder="Digite seu usuário...")
+            senha = st.text_input("Senha", type="password", placeholder="Digite sua senha...")
+            
+            if st.button("ACESSAR SISTEMA", type="primary"):
+                if usuario in USUARIOS and USUARIOS[usuario] == senha:
+                    st.session_state["logado"] = True
+                    st.success("Login realizado com sucesso!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error("Usuário ou senha incorretos.")
+        
+        # Para a execução do script aqui se não estiver logado
+        st.stop()
+
+# Chama a verificação antes de qualquer coisa
+verificar_login()
+
+# ==============================================================================
+# DAQUI PARA BAIXO É O SEU DASHBOARD (SÓ CARREGA SE LOGADO)
+# ==============================================================================
+
+# Paleta Corporativa
+CORES = {
+    "primaria": "#4682B4",         # SteelBlue
+    "primaria_dark": "#315f85",    
+    "meta_linha": "#FF6347",       # Tomato
+    "texto": "#2C3E50",            
+    "fundo": "#F4F6F9",            
+    "sucesso": "#2E8B57",          
+    "atencao": "#DAA520",
+    "sucesso_bg": "#D4EDDA", "sucesso_txt": "#155724",      
+    "falha_bg": "#FFF3CD",   "falha_txt": "#856404",        
+    "neutro_bg": "#E2E3E5",  "neutro_txt": "#383D41"        
+}
+
+# CSS
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
@@ -40,53 +86,34 @@ st.markdown(f"""
         background-color: {CORES['fundo']};
         color: {CORES['texto']};
     }}
-
-    /* AUMENTO DE FONTES */
+    
+    /* Ajustes Gerais */
     h1 {{ font-size: 3rem !important; font-weight: 800 !important; color: {CORES['primaria']}; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }}
     h2 {{ font-size: 2.2rem !important; font-weight: 700 !important; color: {CORES['texto']}; }}
     h3 {{ font-size: 1.6rem !important; font-weight: 600 !important; }}
     p, label, div {{ font-size: 1.1rem !important; }}
 
-    /* CORREÇÃO DOS FILTROS (Azul) */
-    span[data-baseweb="tag"] {{
-        background-color: {CORES['primaria']} !important;
-    }}
-    .stMultiSelect div[data-baseweb="select"] {{
-        background-color: white;
-        border: 1px solid #ced4da;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }}
+    /* Filtros e Botões */
+    span[data-baseweb="tag"] {{ background-color: {CORES['primaria']} !important; }}
+    .stMultiSelect div[data-baseweb="select"] {{ background-color: white; border: 1px solid #ced4da; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
     
-    /* BOTÃO ATUALIZAR */
     div.stButton > button {{
-        background-color: {CORES['primaria']};
-        color: white;
-        font-size: 1.2rem !important;
-        border: none;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        transition: 0.3s;
+        background-color: {CORES['primaria']}; color: white; font-size: 1.2rem !important;
+        border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;
     }}
-    div.stButton > button:hover {{
-        background-color: {CORES['primaria_dark']};
-        color: white;
-    }}
+    div.stButton > button:hover {{ background-color: {CORES['primaria_dark']}; color: white; }}
 
-    /* CARDS DE KPI */
+    /* Cards */
     div[data-testid="stMetric"] {{
-        background-color: white;
-        border-left: 10px solid {CORES['primaria']};
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        background-color: white; border-left: 10px solid {CORES['primaria']};
+        padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }}
     div[data-testid="stMetricValue"] {{ font-size: 2.5rem !important; font-weight: 800; }}
-
-    /* REMOVER ESPAÇOS EXTRAS */
     .block-container {{ padding-top: 1.5rem; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. MOTOR DE DADOS ---
+# --- MOTOR DE DADOS ---
 @st.cache_data(ttl=60)
 def load_data():
     sheet_id = "1Fvo48kFkoTdR9vacDjdasrh6s2MBxcGGFiS53EZcjb8"
@@ -128,70 +155,70 @@ def check_meta(row):
         return valor >= meta 
     except: return False
 
-# --- 3. BARRA LATERAL ---
+# --- BARRA LATERAL (Com Botão de Logout) ---
 with st.sidebar:
     st.markdown(f"<h1 style='color:{CORES['primaria']}; font-size:2rem !important; text-align:center'>Filtros</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     if not df.empty:
-        # Períodos Gráfico
+        # Filtros
         todos_periodos = sorted(df['Quad'].unique())
-        sel_eixo_x = st.multiselect(
-            "Periodos no Grafico:", 
-            todos_periodos, 
-            default=todos_periodos
-        )
+        sel_eixo_x = st.multiselect("Periodos no Grafico:", todos_periodos, default=todos_periodos)
         st.write("")
 
-        # Referência Foco
         opcoes_ref = sel_eixo_x if sel_eixo_x else todos_periodos
         idx_padrao = len(opcoes_ref)-1 if opcoes_ref else 0
-        quad_ref = st.selectbox("Periodo de Referencia (Analise):", opcoes_ref, index=idx_padrao)
+        quad_ref = st.selectbox("Periodo de Referencia:", opcoes_ref, index=idx_padrao)
         st.markdown("---")
 
-        # Filtros Hierárquicos
         all_macros = sorted(df['Macro'].unique())
         sel_macro = st.multiselect("Macrodesafio:", all_macros, default=all_macros)
         
         if sel_macro:
             gestores_disp = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
         else:
-            gestores_disp = []
-            
+            gestores_disp = []  
         sel_gestor = st.multiselect("Unidade / Gestor:", gestores_disp, default=gestores_disp)
+
+        if sel_gestor:
+            filtros_ativos = (df['Macro'].isin(sel_macro)) & (df['Gestor'].isin(sel_gestor))
+            ind_disp = sorted(df[filtros_ativos]['Indicador'].unique())
+        else:
+            ind_disp = []
+        sel_indicador = st.multiselect("Indicadores Específicos:", ind_disp, default=ind_disp)
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("ATUALIZAR DADOS"):
             st.cache_data.clear()
             st.rerun()
+            
+    # BOTÃO SAIR
+    st.markdown("---")
+    if st.button("🚪 SAIR DO SISTEMA"):
+        st.session_state["logado"] = False
+        st.rerun()
 
-# --- 4. CORPO DO DASHBOARD ---
-# Aplica filtros iniciais
+# --- CORPO DO DASHBOARD ---
 df_filtered = df[
     (df['Gestor'].isin(sel_gestor)) & 
-    (df['Macro'].isin(sel_macro))
+    (df['Macro'].isin(sel_macro)) &
+    (df['Indicador'].isin(sel_indicador))
 ].copy()
 
-# === CORREÇÃO DO ERRO ===
-# Criamos a chave única AQUI, antes de entrar nas abas
 if not df_filtered.empty:
     df_filtered['Chave'] = df_filtered['Gestor'] + " - " + df_filtered['Indicador']
 
 st.title("Painel de Monitoramento Estrategico")
 
-# Abas
 tab1, tab2 = st.tabs(["VISAO GRAFICA", "RELATORIO DETALHADO"])
 
-# --- ABA 1: GRÁFICOS ---
+# ABA 1
 with tab1:
     if df_filtered.empty or not sel_eixo_x:
         st.info("Selecione os filtros para visualizar.")
     else:
-        # KPIs
         df_kpi = df_filtered[df_filtered['Quad'] == quad_ref].copy()
-        total = 0
-        sucesso = 0
-        falha = 0
+        total, sucesso, falha = 0, 0, 0
         
         if not df_kpi.empty:
             df_kpi['Atingiu'] = df_kpi.apply(check_meta, axis=1)
@@ -206,9 +233,7 @@ with tab1:
         
         st.markdown("---")
 
-        # Loop Gráficos
         indicadores = sorted(df_filtered['Chave'].unique())
-
         for i in range(0, len(indicadores), 2):
             cols = st.columns(2)
             for j in range(2):
@@ -226,16 +251,12 @@ with tab1:
                             gestor_nm = dado_plot['Gestor'].iloc[0]
                             macro_nm = dado_plot['Macro'].iloc[0]
                             
-                            # Cores
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
                             textos = [formatar_valor(r['Valor'], nome_ind) for _, r in dado_plot.iterrows()]
 
-                            # Container
                             with st.container():
                                 st.markdown(f"<div style='background:white; padding:15px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:10px;'>", unsafe_allow_html=True)
-                                
                                 fig = go.Figure()
-
                                 fig.add_trace(go.Bar(
                                     x=dado_plot['Quad'], y=dado_plot['Valor'],
                                     marker_color=cores, text=textos,
@@ -243,13 +264,10 @@ with tab1:
                                     textfont=dict(size=18, color='white', family="Montserrat", weight="bold"),
                                     hoverinfo='none'
                                 ))
-
-                                # Linha Meta
                                 fig.add_shape(type="line", x0=-0.5, x1=len(dado_plot)-0.5,
                                     y0=meta_val, y1=meta_val,
                                     line=dict(color=CORES['meta_linha'], width=3, dash="dash")
                                 )
-                                
                                 txt_meta = formatar_valor(meta_val, nome_ind)
                                 fig.add_annotation(
                                     x=len(dado_plot)-0.5, y=meta_val,
@@ -258,22 +276,15 @@ with tab1:
                                     font=dict(color=CORES['meta_linha'], size=14, weight="bold"),
                                     bgcolor="rgba(255,255,255,0.9)"
                                 )
-
                                 fig.update_layout(
-                                    title=dict(
-                                        text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{macro_nm} | {gestor_nm}</span>",
-                                        font=dict(size=20, color=CORES['primaria'])
-                                    ),
-                                    height=380, template="plotly_white",
-                                    dragmode=False,
+                                    title=dict(text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{macro_nm} | {gestor_nm}</span>", font=dict(size=20, color=CORES['primaria'])),
+                                    height=380, template="plotly_white", dragmode=False,
                                     xaxis=dict(fixedrange=True, type='category', tickfont=dict(size=14, weight="bold"), showgrid=False),
                                     yaxis=dict(fixedrange=True, showgrid=True, gridcolor='#eee', tickfont=dict(size=12)),
-                                    margin=dict(l=20, r=20, t=70, b=20),
-                                    bargap=0.3
+                                    margin=dict(l=20, r=20, t=70, b=20), bargap=0.3
                                 )
                                 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
 
-                                # Status Box
                                 dado_ref_linha = dado_plot[dado_plot['Quad'] == quad_ref]
                                 if not dado_ref_linha.empty:
                                     row_r = dado_ref_linha.iloc[0]
@@ -284,31 +295,22 @@ with tab1:
                                         st.markdown(f"<div style='background-color:{CORES['falha_bg']}; color:{CORES['falha_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; font-size:1.2rem;'>⚠️ NAO ATINGIDA EM {quad_ref} (Result: {val_ref_fmt})</div>", unsafe_allow_html=True)
                                 else:
                                     st.markdown(f"<div style='background-color:{CORES['neutro_bg']}; color:{CORES['neutro_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold;'>ℹ️ SEM DADOS EM {quad_ref}</div>", unsafe_allow_html=True)
-                                
                                 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- ABA 2: RELATÓRIO ---
+# ABA 2
 with tab2:
     st.markdown(f"<h3 style='color:{CORES['primaria']}'>Relatorio Sintetico - Referencia: {quad_ref}</h3>", unsafe_allow_html=True)
     st.markdown("---")
     
     if not df_filtered.empty:
-        lst_sim = []
-        lst_nao = []
-        lst_sem = []
-        
+        lst_sim, lst_nao, lst_sem = [], [], []
         todos_indicadores = sorted(df_filtered['Chave'].unique())
         
         for chave in todos_indicadores:
-            # Pega info geral (usa qualquer linha do indicador para pegar nome/gestor)
             info_ind = df_filtered[df_filtered['Chave'] == chave].iloc[0]
-            macro_nm = info_ind['Macro']
-            gestor_nm = info_ind['Gestor']
-            ind_nm = info_ind['Indicador']
-            
+            macro_nm, gestor_nm, ind_nm = info_ind['Macro'], info_ind['Gestor'], info_ind['Indicador']
             linha = df_filtered[(df_filtered['Chave'] == chave) & (df_filtered['Quad'] == quad_ref)]
             
-            # HTML PURO
             titulo_html = f"<div style='font-size:1.1rem; font-weight:bold; color:{CORES['texto']}'>{ind_nm}</div>"
             subtitulo_html = f"<div style='font-size:0.9rem; color:#666'>📂 {macro_nm} | 👤 {gestor_nm}</div>"
             
@@ -316,14 +318,7 @@ with tab2:
                 row = linha.iloc[0]
                 val_f = formatar_valor(row['Valor'], ind_nm)
                 meta_f = formatar_valor(row['Meta'], ind_nm)
-                
-                detalhe_html = f"""
-                <div style='margin-top:5px; font-weight:600;'>
-                    Resultado: <span style='font-size:1.2rem'>{val_f}</span> 
-                    <span style='color:#888; font-weight:400'>(Meta: {meta_f})</span>
-                </div>
-                """
-                
+                detalhe_html = f"<div style='margin-top:5px; font-weight:600;'>Resultado: <span style='font-size:1.2rem'>{val_f}</span> <span style='color:#888; font-weight:400'>(Meta: {meta_f})</span></div>"
                 bloco_completo = f"{titulo_html}{subtitulo_html}{detalhe_html}"
                 
                 if check_meta(row): lst_sim.append(bloco_completo)
@@ -333,32 +328,12 @@ with tab2:
                 lst_sem.append(bloco_sem)
 
         c1, c2, c3 = st.columns(3)
-        
         with c1:
-            st.markdown(f"""
-                <div style='background-color:{CORES['sucesso_bg']}; padding:15px; border-radius:8px; border:1px solid #c3e6cb; margin-bottom:15px'>
-                    <h3 style='margin:0; color:{CORES['sucesso_txt']}; text-align:center'>✅ ATINGIRAM ({len(lst_sim)})</h3>
-                </div>
-                """, unsafe_allow_html=True)
-            for item in lst_sim:
-                st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['sucesso']}'>{item}</div>", unsafe_allow_html=True)
-
+            st.markdown(f"<div style='background-color:{CORES['sucesso_bg']}; padding:15px; border-radius:8px; border:1px solid #c3e6cb; margin-bottom:15px'><h3 style='margin:0; color:{CORES['sucesso_txt']}; text-align:center'>✅ ATINGIRAM ({len(lst_sim)})</h3></div>", unsafe_allow_html=True)
+            for item in lst_sim: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['sucesso']}'>{item}</div>", unsafe_allow_html=True)
         with c2:
-            st.markdown(f"""
-                <div style='background-color:{CORES['falha_bg']}; padding:15px; border-radius:8px; border:1px solid #ffeeba; margin-bottom:15px'>
-                    <h3 style='margin:0; color:{CORES['falha_txt']}; text-align:center'>⚠️ NAO ATINGIRAM ({len(lst_nao)})</h3>
-                </div>
-                """, unsafe_allow_html=True)
-            for item in lst_nao:
-                st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['atencao']}'>{item}</div>", unsafe_allow_html=True)
-
+            st.markdown(f"<div style='background-color:{CORES['falha_bg']}; padding:15px; border-radius:8px; border:1px solid #ffeeba; margin-bottom:15px'><h3 style='margin:0; color:{CORES['falha_txt']}; text-align:center'>⚠️ NAO ATINGIRAM ({len(lst_nao)})</h3></div>", unsafe_allow_html=True)
+            for item in lst_nao: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['atencao']}'>{item}</div>", unsafe_allow_html=True)
         with c3:
-            st.markdown(f"""
-                <div style='background-color:{CORES['neutro_bg']}; padding:15px; border-radius:8px; border:1px solid #d6d8db; margin-bottom:15px'>
-                    <h3 style='margin:0; color:{CORES['neutro_txt']}; text-align:center'>ℹ️ NAO CITADOS ({len(lst_sem)})</h3>
-                </div>
-                """, unsafe_allow_html=True)
-            for item in lst_sem:
-                st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid #6c757d'>{item}</div>", unsafe_allow_html=True)
-    else:
-        st.info("Nenhum dado selecionado.")
+            st.markdown(f"<div style='background-color:{CORES['neutro_bg']}; padding:15px; border-radius:8px; border:1px solid #d6d8db; margin-bottom:15px'><h3 style='margin:0; color:{CORES['neutro_txt']}; text-align:center'>ℹ️ NAO CITADOS ({len(lst_sem)})</h3></div>", unsafe_allow_html=True)
+            for item in lst_sem: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid #6c757d'>{item}</div>", unsafe_allow_html=True)
