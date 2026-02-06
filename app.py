@@ -17,7 +17,7 @@ st.set_page_config(
 USUARIOS = {
     "TRE-CE": "TReCe.2026",
     "admin": "aDMiN.2026",
-    "eduardo": "123" # Adicionei apenas para facilitar seu teste
+    "eduardo": "123" # Usuário de teste
 }
 
 def verificar_login():
@@ -55,18 +55,18 @@ def verificar_login():
 verificar_login()
 
 # ==============================================================================
-# SEU DASHBOARD ORIGINAL (COM PEQUENOS AJUSTES DE DADOS APENAS)
+# SEU DASHBOARD ORIGINAL (ESTILO E CORES MANTIDOS)
 # ==============================================================================
 
-# Paleta Corporativa (SUA PALETA ORIGINAL)
+# Paleta Corporativa (SUA PALETA ORIGINAL - SEM VERMELHO)
 CORES = {
     "primaria": "#4682B4",         # SteelBlue
     "primaria_dark": "#315f85",    
     "meta_linha": "#FF6347",       # Tomato
     "texto": "#2C3E50",            
     "fundo": "#F4F6F9",            
-    "sucesso": "#2E8B57",          
-    "atencao": "#DAA520",          # Mantido Dourado (não vermelho)
+    "sucesso": "#2E8B57",          # Verde
+    "atencao": "#DAA520",          # Dourado/Amarelo Queimado (Original)
     "sucesso_bg": "#D4EDDA", "sucesso_txt": "#155724",      
     "falha_bg": "#FFF3CD",   "falha_txt": "#856404",        
     "neutro_bg": "#E2E3E5",  "neutro_txt": "#383D41"        
@@ -106,10 +106,9 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- MOTOR DE DADOS (ADAPTADO PARA LER A NOVA PLANILHA MAS ENTREGAR NO FORMATO ANTIGO) ---
+# --- MOTOR DE DADOS (CORRIGIDO PARA EVITAR ERRO DE COLUNAS) ---
 @st.cache_data(ttl=60)
 def load_data():
-    # Seu Link Atualizado
     sheet_id = "1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs"
     url_csv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
 
@@ -117,35 +116,42 @@ def load_data():
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip()
         
-        # --- AQUI ESTÁ A "PONTE" (Adapta o novo para o velho) ---
+        # --- MAPEAMENTO FORÇADO (RESOLVE O ERRO DE KEYERROR) ---
+        # Substituímos as colunas antigas pelas novas que vieram do R
         
-        # 1. Renomear as colunas novas para os nomes que SEU CÓDIGO usa
-        # Unidade vira Gestor | Resultado_Num vira Valor | Macrodesafio vira Macro
-        rename_map = {
-            'Unidade': 'Gestor',
-            'Resultado_Num': 'Valor',
-            'Meta_Num': 'Meta',
-            'Macrodesafio': 'Macro'
-        }
-        df = df.rename(columns=rename_map)
-        
-        # 2. Criar a coluna 'Quad' (Periodo) que seu código usa (Ex: 2021.1)
-        # O novo arquivo tem Ano e Quadrimestre separados, vamos juntar.
+        # 1. Unidade -> Gestor
+        if 'Unidade' in df.columns:
+            df['Gestor'] = df['Unidade'] # Sobrescreve
+        else:
+            df['Gestor'] = df['Gestor'].astype(str)
+
+        # 2. Resultado_Num -> Valor
+        if 'Resultado_Num' in df.columns:
+            df['Valor'] = df['Resultado_Num'] # Sobrescreve
+
+        # 3. Meta_Num -> Meta
+        if 'Meta_Num' in df.columns:
+            df['Meta'] = df['Meta_Num'] # Sobrescreve
+            
+        # 4. Macrodesafio -> Macro
+        if 'Macrodesafio' in df.columns:
+            df['Macro'] = df['Macrodesafio']
+        elif 'Macro' not in df.columns: 
+            df['Macro'] = 'Geral'
+
+        # 5. Criar a coluna 'Quad' (Ex: 2026.1) juntando Ano e Quadrimestre
         df['Ano'] = df['Ano'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quadrimestre'] = df['Quadrimestre'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quad'] = df['Ano'] + "." + df['Quadrimestre']
         
-        # 3. Garantir tipos de dados
+        # 6. Garantir tipos
         df['Gestor'] = df['Gestor'].astype(str)
         df['Indicador'] = df['Indicador'].astype(str)
-        
-        # Se não tiver Macrodesafio na planilha nova, cria um Geral para não quebrar o filtro
-        if 'Macro' not in df.columns: 
-            df['Macro'] = 'Geral'
         df['Macro'] = df['Macro'].astype(str)
 
-        # 4. Tratamento Numérico e Polaridade
+        # 7. Tratamento Numérico e Polaridade
         for col in ['Meta', 'Valor']:
+            if col not in df.columns: df[col] = 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
             
         if 'Polaridade' in df.columns:
@@ -166,21 +172,21 @@ def formatar_valor(valor, nome_indicador):
         return f"{valor}%"
     return f"{valor}"
 
-# --- LÓGICA CORRIGIDA (Usa Polaridade numérica em vez de texto) ---
+# --- LÓGICA CORRIGIDA (Usa a Polaridade Numérica do R) ---
+# Isso resolve o problema de mostrar vermelho quando bateu a meta
 def check_meta(row):
     try:
         meta = float(row['Meta'])
         valor = float(row['Valor'])
-        # AQUI MUDOU: Usamos a coluna Polaridade (1 ou -1) do novo arquivo
-        # Em vez de procurar texto em 'Sentido'
+        # 1 = Maior Melhor, -1 = Menor Melhor
         polaridade = row.get('Polaridade', 1) 
         
-        if polaridade == 1:   # Maior é Melhor
+        if polaridade == 1:
             return valor >= meta
-        elif polaridade == -1: # Menor é Melhor
+        elif polaridade == -1: 
             return valor <= meta
         else:
-            return valor >= meta # Padrão
+            return valor >= meta # Fallback
     except:
         return False
 
@@ -190,7 +196,7 @@ with st.sidebar:
     st.markdown("---")
     
     if not df.empty:
-        # Filtros (SEUS FILTROS ORIGINAIS VOLTARAM)
+        # Filtros (SEUS FILTROS ORIGINAIS)
         todos_periodos = sorted(df['Quad'].unique())
         sel_eixo_x = st.multiselect("Periodos no Grafico:", todos_periodos, default=todos_periodos)
         st.write("")
@@ -228,7 +234,6 @@ with st.sidebar:
         st.rerun()
 
 # --- CORPO DO DASHBOARD (SEU LAYOUT ORIGINAL) ---
-# Lógica de filtragem original mantida
 df_filtered = df[
     (df['Gestor'].isin(sel_gestor)) & 
     (df['Macro'].isin(sel_macro)) &
@@ -281,7 +286,7 @@ with tab1:
                             gestor_nm = dado_plot['Gestor'].iloc[0]
                             macro_nm = dado_plot['Macro'].iloc[0]
                             
-                            # Cores baseadas na meta (Correção Lógica aqui também)
+                            # Cores baseadas na meta (Correção Lógica: Usa a Polaridade correta)
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
                             textos = [formatar_valor(r['Valor'], nome_ind) for _, r in dado_plot.iterrows()]
 
