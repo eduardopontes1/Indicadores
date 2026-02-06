@@ -13,11 +13,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- SISTEMA DE LOGIN (MANTIDO ORIGINAL) ---
+# --- SISTEMA DE LOGIN ---
 USUARIOS = {
     "TRE-CE": "TReCe.2026",
     "admin": "aDMiN.2026",
-    "eduardo": "123" # Usuário de teste
+    "eduardo": "123"
 }
 
 def verificar_login():
@@ -55,10 +55,8 @@ def verificar_login():
 verificar_login()
 
 # ==============================================================================
-# SEU DASHBOARD ORIGINAL (ESTILO E CORES MANTIDOS)
+# 2. DESIGN (CORES ORIGINAIS MANTIDAS)
 # ==============================================================================
-
-# Paleta Corporativa (SUA PALETA ORIGINAL - SEM VERMELHO)
 CORES = {
     "primaria": "#4682B4",         # SteelBlue
     "primaria_dark": "#315f85",    
@@ -66,13 +64,12 @@ CORES = {
     "texto": "#2C3E50",            
     "fundo": "#F4F6F9",            
     "sucesso": "#2E8B57",          # Verde
-    "atencao": "#DAA520",          # Dourado/Amarelo Queimado (Original)
+    "atencao": "#DAA520",          # Dourado (Original)
     "sucesso_bg": "#D4EDDA", "sucesso_txt": "#155724",      
     "falha_bg": "#FFF3CD",   "falha_txt": "#856404",        
     "neutro_bg": "#E2E3E5",  "neutro_txt": "#383D41"        
 }
 
-# CSS (SEU CSS ORIGINAL)
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
@@ -106,7 +103,9 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- MOTOR DE DADOS (CORRIGIDO PARA EVITAR ERRO DE COLUNAS) ---
+# ==============================================================================
+# 3. MOTOR DE DADOS (CORRIGIDO MACRO E META)
+# ==============================================================================
 @st.cache_data(ttl=60)
 def load_data():
     sheet_id = "1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs"
@@ -116,44 +115,50 @@ def load_data():
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip()
         
-        # --- MAPEAMENTO FORÇADO (RESOLVE O ERRO DE KEYERROR) ---
-        # Substituímos as colunas antigas pelas novas que vieram do R
+        # --- MAPEAMENTO E CORREÇÕES ---
         
         # 1. Unidade -> Gestor
         if 'Unidade' in df.columns:
-            df['Gestor'] = df['Unidade'] # Sobrescreve
+            df['Gestor'] = df['Unidade']
         else:
             df['Gestor'] = df['Gestor'].astype(str)
 
         # 2. Resultado_Num -> Valor
         if 'Resultado_Num' in df.columns:
-            df['Valor'] = df['Resultado_Num'] # Sobrescreve
+            df['Valor'] = df['Resultado_Num']
+        elif 'Resultado' in df.columns:
+             # Tenta limpar caso venha texto
+             df['Valor'] = pd.to_numeric(df['Resultado'].astype(str).str.replace(',', '.'), errors='coerce')
 
         # 3. Meta_Num -> Meta
         if 'Meta_Num' in df.columns:
-            df['Meta'] = df['Meta_Num'] # Sobrescreve
+            df['Meta'] = df['Meta_Num']
+        elif 'Meta' in df.columns:
+             df['Meta'] = pd.to_numeric(df['Meta'].astype(str).str.replace(',', '.'), errors='coerce')
             
-        # 4. Macrodesafio -> Macro
+        # 4. Macrodesafio -> Macro (CORREÇÃO AQUI)
+        # Se a coluna Macrodesafio existir, joga para Macro
         if 'Macrodesafio' in df.columns:
             df['Macro'] = df['Macrodesafio']
         elif 'Macro' not in df.columns: 
-            df['Macro'] = 'Geral'
+            df['Macro'] = 'Geral' # Fallback se não achar nada
 
-        # 5. Criar a coluna 'Quad' (Ex: 2026.1) juntando Ano e Quadrimestre
+        # 5. Criar 'Quad' (Periodo)
         df['Ano'] = df['Ano'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quadrimestre'] = df['Quadrimestre'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quad'] = df['Ano'] + "." + df['Quadrimestre']
         
-        # 6. Garantir tipos
+        # 6. Tipagem
         df['Gestor'] = df['Gestor'].astype(str)
         df['Indicador'] = df['Indicador'].astype(str)
         df['Macro'] = df['Macro'].astype(str)
 
-        # 7. Tratamento Numérico e Polaridade
+        # 7. Limpeza Numérica Final
         for col in ['Meta', 'Valor']:
             if col not in df.columns: df[col] = 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
             
+        # 8. Polaridade
         if 'Polaridade' in df.columns:
             df['Polaridade'] = pd.to_numeric(df['Polaridade'], errors='coerce').fillna(1)
         else:
@@ -172,13 +177,10 @@ def formatar_valor(valor, nome_indicador):
         return f"{valor}%"
     return f"{valor}"
 
-# --- LÓGICA CORRIGIDA (Usa a Polaridade Numérica do R) ---
-# Isso resolve o problema de mostrar vermelho quando bateu a meta
 def check_meta(row):
     try:
         meta = float(row['Meta'])
         valor = float(row['Valor'])
-        # 1 = Maior Melhor, -1 = Menor Melhor
         polaridade = row.get('Polaridade', 1) 
         
         if polaridade == 1:
@@ -186,17 +188,19 @@ def check_meta(row):
         elif polaridade == -1: 
             return valor <= meta
         else:
-            return valor >= meta # Fallback
+            return valor >= meta
     except:
         return False
 
-# --- BARRA LATERAL ORIGINAL (MANTIDA IGUAL) ---
+# ==============================================================================
+# 4. BARRA LATERAL (FILTROS)
+# ==============================================================================
 with st.sidebar:
     st.markdown(f"<h1 style='color:{CORES['primaria']}; font-size:2rem !important; text-align:center'>Filtros</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     if not df.empty:
-        # Filtros (SEUS FILTROS ORIGINAIS)
+        # Filtros
         todos_periodos = sorted(df['Quad'].unique())
         sel_eixo_x = st.multiselect("Periodos no Grafico:", todos_periodos, default=todos_periodos)
         st.write("")
@@ -209,12 +213,14 @@ with st.sidebar:
         all_macros = sorted(df['Macro'].unique())
         sel_macro = st.multiselect("Macrodesafio:", all_macros, default=all_macros)
         
+        # Lógica de cascata: Gestor depende do Macro selecionado
         if sel_macro:
             gestores_disp = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
         else:
             gestores_disp = []  
         sel_gestor = st.multiselect("Unidade / Gestor:", gestores_disp, default=gestores_disp)
 
+        # Lógica de cascata: Indicador depende do Gestor
         if sel_gestor:
             filtros_ativos = (df['Macro'].isin(sel_macro)) & (df['Gestor'].isin(sel_gestor))
             ind_disp = sorted(df[filtros_ativos]['Indicador'].unique())
@@ -227,13 +233,14 @@ with st.sidebar:
             st.cache_data.clear()
             st.rerun()
             
-    # BOTÃO SAIR
     st.markdown("---")
     if st.button("🚪 SAIR DO SISTEMA"):
         st.session_state["logado"] = False
         st.rerun()
 
-# --- CORPO DO DASHBOARD (SEU LAYOUT ORIGINAL) ---
+# ==============================================================================
+# 5. CORPO DO DASHBOARD
+# ==============================================================================
 df_filtered = df[
     (df['Gestor'].isin(sel_gestor)) & 
     (df['Macro'].isin(sel_macro)) &
@@ -247,11 +254,12 @@ st.title("Painel de Monitoramento Estrategico")
 
 tab1, tab2 = st.tabs(["VISAO GRAFICA", "RELATORIO DETALHADO"])
 
-# ABA 1 (VISUALIZAÇÃO GRAFICA ORIGINAL)
+# ABA 1
 with tab1:
     if df_filtered.empty or not sel_eixo_x:
         st.info("Selecione os filtros para visualizar.")
     else:
+        # KPI usa apenas o período de referência (quad_ref)
         df_kpi = df_filtered[df_filtered['Quad'] == quad_ref].copy()
         total, sucesso, falha = 0, 0, 0
         
@@ -275,18 +283,29 @@ with tab1:
                 if i + j < len(indicadores):
                     chave = indicadores[i+j]
                     with cols[j]:
+                        # Pega o histórico selecionado no eixo X
                         dado_plot = df_filtered[
                             (df_filtered['Chave'] == chave) & 
                             (df_filtered['Quad'].isin(sel_eixo_x))
                         ].sort_values('Quad')
                         
                         if not dado_plot.empty:
-                            meta_val = dado_plot['Meta'].iloc[0]
+                            # Infos estáticas (Nome, Gestor)
                             nome_ind = dado_plot['Indicador'].iloc[0]
                             gestor_nm = dado_plot['Gestor'].iloc[0]
                             macro_nm = dado_plot['Macro'].iloc[0]
                             
-                            # Cores baseadas na meta (Correção Lógica: Usa a Polaridade correta)
+                            # --- CORREÇÃO DA META ---
+                            # Tentamos pegar a meta ESPECÍFICA do quad_ref selecionado
+                            # Se a meta mudou de um ano pro outro, a linha vermelha 
+                            # vai respeitar o período que você está analisando.
+                            meta_ref_row = dado_plot[dado_plot['Quad'] == quad_ref]
+                            if not meta_ref_row.empty:
+                                meta_val = meta_ref_row['Meta'].iloc[0]
+                            else:
+                                # Fallback: se não tiver meta no periodo de ref, pega a última disponível
+                                meta_val = dado_plot['Meta'].iloc[-1]
+                            
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
                             textos = [formatar_valor(r['Valor'], nome_ind) for _, r in dado_plot.iterrows()]
 
@@ -300,6 +319,8 @@ with tab1:
                                     textfont=dict(size=18, color='white', family="Montserrat", weight="bold"),
                                     hoverinfo='none'
                                 ))
+                                
+                                # Linha de Meta (Agora alinhada com o período de referência)
                                 fig.add_shape(type="line", x0=-0.5, x1=len(dado_plot)-0.5,
                                     y0=meta_val, y1=meta_val,
                                     line=dict(color=CORES['meta_linha'], width=3, dash="dash")
@@ -321,6 +342,7 @@ with tab1:
                                 )
                                 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
 
+                                # Status no rodapé do gráfico (para o período de referência)
                                 dado_ref_linha = dado_plot[dado_plot['Quad'] == quad_ref]
                                 if not dado_ref_linha.empty:
                                     row_r = dado_ref_linha.iloc[0]
@@ -333,7 +355,7 @@ with tab1:
                                     st.markdown(f"<div style='background-color:{CORES['neutro_bg']}; color:{CORES['neutro_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold;'>ℹ️ SEM DADOS EM {quad_ref}</div>", unsafe_allow_html=True)
                                 st.markdown("</div>", unsafe_allow_html=True)
 
-# ABA 2 (RELATORIO ORIGINAL)
+# ABA 2
 with tab2:
     st.markdown(f"<h3 style='color:{CORES['primaria']}'>Relatorio Sintetico - Referencia: {quad_ref}</h3>", unsafe_allow_html=True)
     st.markdown("---")
