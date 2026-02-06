@@ -16,8 +16,8 @@ st.set_page_config(
 # --- SISTEMA DE LOGIN ---
 USUARIOS = {
     "TRE-CE": "TReCe.2026",
-    "admin": "aDMiN.2026",
-    "eduardo": "123"
+    "admin": "aDMiN.2026"
+    
 }
 
 def verificar_login():
@@ -109,7 +109,7 @@ st.markdown(f"""
 @st.cache_data(ttl=60)
 def load_data():
     sheet_id = "1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs"
-    url_csv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    url_csv = f"https://docs.google.com/spreadsheets/d/1Ue4EuT4-NOJwF4VesxFvktkM9kEJdVe7E5i7n8PkBds/edit?usp=sharing"
 
     try:
         df = pd.read_csv(url_csv)
