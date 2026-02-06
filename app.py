@@ -5,26 +5,19 @@ import time
 import numpy as np
 
 # ==============================================================================
-# 0. CONFIGURAÇÃO DA PLANILHA (SEU LINK NOVO AQUI)
+# 1. CONFIGURAÇÃO E AUTENTICAÇÃO
 # ==============================================================================
-# ID da sua planilha (extraído do link que você mandou)
-SHEET_ID = "1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs"
-# Monta o link mágico que baixa o CSV direto
-URL_DADOS = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
-
 st.set_page_config(
-    page_title="Painel Estratégico | TRE-CE",
+    page_title="Acesso Restrito | TRE-CE",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ==============================================================================
-# 1. SISTEMA DE LOGIN
-# ==============================================================================
+# --- SISTEMA DE LOGIN (MANTIDO ORIGINAL) ---
 USUARIOS = {
     "TRE-CE": "TReCe.2026",
     "admin": "aDMiN.2026",
-    "eduardo": "123" # Usuário de teste
+    "eduardo": "123" # Adicionei apenas para facilitar seu teste
 }
 
 def verificar_login():
@@ -39,7 +32,7 @@ def verificar_login():
                 """
                 <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #666;'>
                     <h1 style='color: #666; font-size: 2rem;'>🔒 Acesso Restrito</h1>
-                    <p style='color: #666;'>Monitoramento Estratégico TRE-CE</p>
+                    <p style='color: #666;'>Painel de Monitoramento Estratégico TRE-CE</p>
                 </div>
                 <br>
                 """, 
@@ -62,311 +55,316 @@ def verificar_login():
 verificar_login()
 
 # ==============================================================================
-# 2. DESIGN E ESTILO
+# SEU DASHBOARD ORIGINAL (COM PEQUENOS AJUSTES DE DADOS APENAS)
 # ==============================================================================
+
+# Paleta Corporativa (SUA PALETA ORIGINAL)
 CORES = {
-    "primaria": "#4682B4",         # Azul Steel
-    "meta_linha": "#FF6347",       # Tomate (Linha da meta)
-    "texto": "#2C3E50",            # Cinza Escuro
-    "fundo": "#F4F6F9",            # Cinza Claro Fundo
-    "sucesso": "#2E8B57",          # Verde
-    "atencao": "#C0392B",          # Vermelho
-    "sucesso_bg": "#D4EDDA", "sucesso_txt": "#155724",
-    "falha_bg": "#F8D7DA",   "falha_txt": "#721C24"
+    "primaria": "#4682B4",         # SteelBlue
+    "primaria_dark": "#315f85",    
+    "meta_linha": "#FF6347",       # Tomato
+    "texto": "#2C3E50",            
+    "fundo": "#F4F6F9",            
+    "sucesso": "#2E8B57",          
+    "atencao": "#DAA520",          # Mantido Dourado (não vermelho)
+    "sucesso_bg": "#D4EDDA", "sucesso_txt": "#155724",      
+    "falha_bg": "#FFF3CD",   "falha_txt": "#856404",        
+    "neutro_bg": "#E2E3E5",  "neutro_txt": "#383D41"        
 }
 
+# CSS (SEU CSS ORIGINAL)
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
-    
+
     html, body, [class*="css"] {{
         font-family: 'Montserrat', sans-serif !important;
         background-color: {CORES['fundo']};
         color: {CORES['texto']};
     }}
     
-    h1 {{ color: {CORES['primaria']}; font-weight: 800 !important; }}
-    h2, h3 {{ color: {CORES['texto']}; font-weight: 700 !important; }}
-    
-    div[data-testid="stMetric"] {{
-        background-color: white;
-        border-left: 8px solid {CORES['primaria']};
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }}
+    h1 {{ font-size: 3rem !important; font-weight: 800 !important; color: {CORES['primaria']}; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }}
+    h2 {{ font-size: 2.2rem !important; font-weight: 700 !important; color: {CORES['texto']}; }}
+    h3 {{ font-size: 1.6rem !important; font-weight: 600 !important; }}
+    p, label, div {{ font-size: 1.1rem !important; }}
+
+    span[data-baseweb="tag"] {{ background-color: {CORES['primaria']} !important; }}
+    .stMultiSelect div[data-baseweb="select"] {{ background-color: white; border: 1px solid #ced4da; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
     
     div.stButton > button {{
-        width: 100%;
-        font-weight: bold;
+        background-color: {CORES['primaria']}; color: white; font-size: 1.2rem !important;
+        border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;
     }}
+    div.stButton > button:hover {{ background-color: {CORES['primaria_dark']}; color: white; }}
+
+    div[data-testid="stMetric"] {{
+        background-color: white; border-left: 10px solid {CORES['primaria']};
+        padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }}
+    div[data-testid="stMetricValue"] {{ font-size: 2.5rem !important; font-weight: 800; }}
+    .block-container {{ padding-top: 1.5rem; }}
     </style>
     """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 3. MOTOR DE DADOS (CONEXÃO COM GOOGLE SHEETS)
-# ==============================================================================
-
-@st.cache_data(ttl=60) # Atualiza a cada 60 segundos
+# --- MOTOR DE DADOS (ADAPTADO PARA LER A NOVA PLANILHA MAS ENTREGAR NO FORMATO ANTIGO) ---
+@st.cache_data(ttl=60)
 def load_data():
+    # Seu Link Atualizado
+    sheet_id = "1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs"
+    url_csv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+
     try:
-        # Lê direto do Google Sheets usando o link de exportação
-        df = pd.read_csv(URL_DADOS)
-        
-        # 1. Limpeza Básica
+        df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip()
         
-        # 2. Tratamento de Números (Garante que lê ponto ou vírgula)
-        # Se sua planilha usar vírgula (padrão Brasil), isso corrige:
-        for col in ['Meta_Num', 'Resultado_Num']:
-            if col in df.columns:
-                if df[col].dtype == 'object': # Se for texto
-                    df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+        # --- AQUI ESTÁ A "PONTE" (Adapta o novo para o velho) ---
         
-        # 3. Verifica colunas essenciais
-        colunas_necessarias = ['Meta_Num', 'Resultado_Num', 'Ano', 'Quadrimestre', 'Unidade']
-        if not all(col in df.columns for col in colunas_necessarias):
-            st.error(f"Erro: A planilha precisa ter as colunas: {colunas_necessarias}")
-            return pd.DataFrame()
+        # 1. Renomear as colunas novas para os nomes que SEU CÓDIGO usa
+        # Unidade vira Gestor | Resultado_Num vira Valor | Macrodesafio vira Macro
+        rename_map = {
+            'Unidade': 'Gestor',
+            'Resultado_Num': 'Valor',
+            'Meta_Num': 'Meta',
+            'Macrodesafio': 'Macro'
+        }
+        df = df.rename(columns=rename_map)
+        
+        # 2. Criar a coluna 'Quad' (Periodo) que seu código usa (Ex: 2021.1)
+        # O novo arquivo tem Ano e Quadrimestre separados, vamos juntar.
+        df['Ano'] = df['Ano'].astype(str).str.replace(r'\.0$', '', regex=True)
+        df['Quadrimestre'] = df['Quadrimestre'].astype(str).str.replace(r'\.0$', '', regex=True)
+        df['Quad'] = df['Ano'] + "." + df['Quadrimestre']
+        
+        # 3. Garantir tipos de dados
+        df['Gestor'] = df['Gestor'].astype(str)
+        df['Indicador'] = df['Indicador'].astype(str)
+        
+        # Se não tiver Macrodesafio na planilha nova, cria um Geral para não quebrar o filtro
+        if 'Macro' not in df.columns: 
+            df['Macro'] = 'Geral'
+        df['Macro'] = df['Macro'].astype(str)
 
-        df = df.dropna(subset=['Meta_Num', 'Resultado_Num'])
-        
-        # 4. Tratamento de Polaridade
+        # 4. Tratamento Numérico e Polaridade
+        for col in ['Meta', 'Valor']:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            
         if 'Polaridade' in df.columns:
             df['Polaridade'] = pd.to_numeric(df['Polaridade'], errors='coerce').fillna(1)
         else:
-            df['Polaridade'] = 1 
+            df['Polaridade'] = 1
 
-        # 5. Criar Coluna de Ordenação Temporal
-        df['Ano'] = df['Ano'].astype(str).str.replace(r'\.0$', '', regex=True)
-        df['Quadrimestre'] = df['Quadrimestre'].astype(str).str.replace(r'\.0$', '', regex=True)
-        df['Periodo_Grafico'] = df['Ano'] + "." + df['Quadrimestre']
-        
-        # 6. Criar Chave Única
-        df['Chave'] = df['Unidade'] + " - " + df['Indicador']
-        
         return df
-
     except Exception as e:
-        st.error(f"Erro ao conectar na planilha Google. Verifique se ela está pública (Qualquer pessoa com o link). Detalhe: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
         return pd.DataFrame()
 
 df = load_data()
 
-def formatar_valor(valor):
-    try:
-        if pd.isna(valor): return "-"
-        if valor >= 1000:
-            return f"{valor:,.0f}".replace(',', '.')
-        elif isinstance(valor, float):
-            return f"{valor:.2f}".replace('.', ',')
-        return str(valor)
-    except:
-        return str(valor)
+def formatar_valor(valor, nome_indicador):
+    nome_indicador = nome_indicador.lower()
+    if any(x in nome_indicador for x in ['indice', 'taxa', 'percentual', '%']):
+        return f"{valor}%"
+    return f"{valor}"
 
+# --- LÓGICA CORRIGIDA (Usa Polaridade numérica em vez de texto) ---
 def check_meta(row):
     try:
-        meta = row['Meta_Num']
-        real = row['Resultado_Num']
-        polaridade = row['Polaridade']
+        meta = float(row['Meta'])
+        valor = float(row['Valor'])
+        # AQUI MUDOU: Usamos a coluna Polaridade (1 ou -1) do novo arquivo
+        # Em vez de procurar texto em 'Sentido'
+        polaridade = row.get('Polaridade', 1) 
         
         if polaridade == 1:   # Maior é Melhor
-            return real >= meta
+            return valor >= meta
         elif polaridade == -1: # Menor é Melhor
-            return real <= meta
+            return valor <= meta
         else:
-            return real >= meta
+            return valor >= meta # Padrão
     except:
         return False
 
-# ==============================================================================
-# 4. FILTROS
-# ==============================================================================
+# --- BARRA LATERAL ORIGINAL (MANTIDA IGUAL) ---
 with st.sidebar:
-    st.markdown(f"<h2 style='text-align:center; color:{CORES['primaria']}'>Filtros</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='color:{CORES['primaria']}; font-size:2rem !important; text-align:center'>Filtros</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     if not df.empty:
-        anos_disponiveis = sorted(df['Ano'].unique(), reverse=True)
-        sel_ano = st.selectbox("Selecione o Ano:", anos_disponiveis)
-        
-        quads_do_ano = sorted(df[df['Ano'] == sel_ano]['Quadrimestre'].unique())
-        idx_quad = len(quads_do_ano) - 1 if len(quads_do_ano) > 0 else 0
-        sel_quad = st.selectbox("Quadrimestre de Referência:", quads_do_ano, index=idx_quad)
-        
+        # Filtros (SEUS FILTROS ORIGINAIS VOLTARAM)
+        todos_periodos = sorted(df['Quad'].unique())
+        sel_eixo_x = st.multiselect("Periodos no Grafico:", todos_periodos, default=todos_periodos)
+        st.write("")
+
+        opcoes_ref = sel_eixo_x if sel_eixo_x else todos_periodos
+        idx_padrao = len(opcoes_ref)-1 if opcoes_ref else 0
+        quad_ref = st.selectbox("Periodo de Referencia:", opcoes_ref, index=idx_padrao)
         st.markdown("---")
+
+        all_macros = sorted(df['Macro'].unique())
+        sel_macro = st.multiselect("Macrodesafio:", all_macros, default=all_macros)
         
-        unidades_disp = sorted(df['Unidade'].dropna().unique())
-        sel_unidade = st.multiselect("Filtrar Unidade(s):", unidades_disp, default=unidades_disp)
-        
-        if sel_unidade:
-            df_temp = df[df['Unidade'].isin(sel_unidade)]
-            ind_disp = sorted(df_temp['Indicador'].unique())
+        if sel_macro:
+            gestores_disp = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
+        else:
+            gestores_disp = []  
+        sel_gestor = st.multiselect("Unidade / Gestor:", gestores_disp, default=gestores_disp)
+
+        if sel_gestor:
+            filtros_ativos = (df['Macro'].isin(sel_macro)) & (df['Gestor'].isin(sel_gestor))
+            ind_disp = sorted(df[filtros_ativos]['Indicador'].unique())
         else:
             ind_disp = []
-        sel_indicador = st.multiselect("Filtrar Indicador(es):", ind_disp, default=[])
+        sel_indicador = st.multiselect("Indicadores Específicos:", ind_disp, default=ind_disp)
         
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 ATUALIZAR DADOS"):
+        if st.button("ATUALIZAR DADOS"):
             st.cache_data.clear()
             st.rerun()
-
+            
+    # BOTÃO SAIR
     st.markdown("---")
-    if st.button("🚪 SAIR"):
+    if st.button("🚪 SAIR DO SISTEMA"):
         st.session_state["logado"] = False
         st.rerun()
 
-# ==============================================================================
-# 5. DASHBOARD
-# ==============================================================================
-
-filtro_ind = sel_indicador if sel_indicador else df['Indicador'].unique()
-
+# --- CORPO DO DASHBOARD (SEU LAYOUT ORIGINAL) ---
+# Lógica de filtragem original mantida
 df_filtered = df[
-    (df['Unidade'].isin(sel_unidade)) & 
-    (df['Indicador'].isin(filtro_ind))
+    (df['Gestor'].isin(sel_gestor)) & 
+    (df['Macro'].isin(sel_macro)) &
+    (df['Indicador'].isin(sel_indicador))
 ].copy()
 
-st.title(f"Painel Estratégico {sel_ano}")
+if not df_filtered.empty:
+    df_filtered['Chave'] = df_filtered['Gestor'] + " - " + df_filtered['Indicador']
 
-tab1, tab2 = st.tabs(["📊 VISÃO GRÁFICA", "📋 RELATÓRIO DETALHADO"])
+st.title("Painel de Monitoramento Estrategico")
 
+tab1, tab2 = st.tabs(["VISAO GRAFICA", "RELATORIO DETALHADO"])
+
+# ABA 1 (VISUALIZAÇÃO GRAFICA ORIGINAL)
 with tab1:
-    if df_filtered.empty:
-        st.warning("Aguardando seleção de filtros ou carregamento de dados...")
+    if df_filtered.empty or not sel_eixo_x:
+        st.info("Selecione os filtros para visualizar.")
     else:
-        df_kpi = df_filtered[
-            (df_filtered['Ano'] == sel_ano) & 
-            (df_filtered['Quadrimestre'] == sel_quad)
-        ].copy()
+        df_kpi = df_filtered[df_filtered['Quad'] == quad_ref].copy()
+        total, sucesso, falha = 0, 0, 0
         
-        total_kpi = len(df_kpi)
-        if total_kpi > 0:
-            sucesso_kpi = df_kpi.apply(check_meta, axis=1).sum()
-            falha_kpi = total_kpi - sucesso_kpi
-            taxa_sucesso = (sucesso_kpi / total_kpi) * 100
-        else:
-            sucesso_kpi, falha_kpi, taxa_sucesso = 0, 0, 0
+        if not df_kpi.empty:
+            df_kpi['Atingiu'] = df_kpi.apply(check_meta, axis=1)
+            total = len(df_kpi)
+            sucesso = df_kpi['Atingiu'].sum()
+            falha = total - sucesso
             
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric(f"Indicadores ({sel_quad}º Quad)", total_kpi)
-        c2.metric("Metas Batidas", int(sucesso_kpi))
-        c3.metric("Não Batidas", int(falha_kpi), delta_color="inverse")
-        c4.metric("Taxa de Sucesso", f"{taxa_sucesso:.1f}%")
+        k1, k2, k3 = st.columns(3)
+        k1.metric(f"Total em {quad_ref}", total)
+        k2.metric("Meta Atingida", int(sucesso))
+        k3.metric("Nao Atingida", int(falha), delta_color="inverse")
         
         st.markdown("---")
-        
-        indicadores_unicos = sorted(df_filtered['Chave'].unique())
-        
-        for i in range(0, len(indicadores_unicos), 2):
+
+        indicadores = sorted(df_filtered['Chave'].unique())
+        for i in range(0, len(indicadores), 2):
             cols = st.columns(2)
             for j in range(2):
-                if i + j < len(indicadores_unicos):
-                    chave_atual = indicadores_unicos[i+j]
+                if i + j < len(indicadores):
+                    chave = indicadores[i+j]
                     with cols[j]:
-                        dado_plot = df_filtered[df_filtered['Chave'] == chave_atual].sort_values(['Ano', 'Quadrimestre'])
+                        dado_plot = df_filtered[
+                            (df_filtered['Chave'] == chave) & 
+                            (df_filtered['Quad'].isin(sel_eixo_x))
+                        ].sort_values('Quad')
                         
                         if not dado_plot.empty:
-                            row_info = dado_plot.iloc[-1]
-                            nome_ind = row_info['Indicador']
-                            unidade_nm = row_info['Unidade']
-                            polaridade = row_info['Polaridade']
+                            meta_val = dado_plot['Meta'].iloc[0]
+                            nome_ind = dado_plot['Indicador'].iloc[0]
+                            gestor_nm = dado_plot['Gestor'].iloc[0]
+                            macro_nm = dado_plot['Macro'].iloc[0]
                             
-                            meta_row = dado_plot[(dado_plot['Ano'] == sel_ano) & (dado_plot['Quadrimestre'] == sel_quad)]
-                            meta_atual = meta_row['Meta_Num'].values[0] if not meta_row.empty else row_info['Meta_Num']
-
+                            # Cores baseadas na meta (Correção Lógica aqui também)
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
-                            textos = [formatar_valor(r['Resultado_Num']) for _, r in dado_plot.iterrows()]
+                            textos = [formatar_valor(r['Valor'], nome_ind) for _, r in dado_plot.iterrows()]
 
                             with st.container():
-                                st.markdown(f"<div style='background:white; padding:10px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;'>", unsafe_allow_html=True)
-                                
+                                st.markdown(f"<div style='background:white; padding:15px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:10px;'>", unsafe_allow_html=True)
                                 fig = go.Figure()
                                 fig.add_trace(go.Bar(
-                                    x=dado_plot['Periodo_Grafico'],
-                                    y=dado_plot['Resultado_Num'],
-                                    marker_color=cores,
-                                    text=textos,
+                                    x=dado_plot['Quad'], y=dado_plot['Valor'],
+                                    marker_color=cores, text=textos,
                                     textposition='auto',
-                                    name="Resultado"
+                                    textfont=dict(size=18, color='white', family="Montserrat", weight="bold"),
+                                    hoverinfo='none'
                                 ))
-                                
-                                fig.add_shape(type="line",
-                                    x0=-0.5, x1=len(dado_plot)-0.5,
-                                    y0=meta_atual, y1=meta_atual,
-                                    line=dict(color=CORES['meta_linha'], width=2, dash="dash")
+                                fig.add_shape(type="line", x0=-0.5, x1=len(dado_plot)-0.5,
+                                    y0=meta_val, y1=meta_val,
+                                    line=dict(color=CORES['meta_linha'], width=3, dash="dash")
                                 )
-                                
-                                seta = "⬆️ Maior é Melhor" if polaridade == 1 else "⬇️ Menor é Melhor"
+                                txt_meta = formatar_valor(meta_val, nome_ind)
                                 fig.add_annotation(
-                                    x=len(dado_plot)-0.5, y=meta_atual,
-                                    text=f" META: {formatar_valor(meta_atual)} ",
+                                    x=len(dado_plot)-0.5, y=meta_val,
+                                    text=f" META: {txt_meta} ",
                                     showarrow=False, xanchor="right", yshift=10,
-                                    font=dict(color=CORES['meta_linha'], size=12, weight="bold"),
-                                    bgcolor="rgba(255,255,255,0.8)"
+                                    font=dict(color=CORES['meta_linha'], size=14, weight="bold"),
+                                    bgcolor="rgba(255,255,255,0.9)"
                                 )
-                                
                                 fig.update_layout(
-                                    title=dict(
-                                        text=f"<b>{nome_ind}</b><br><span style='font-size:13px;color:#555'>{unidade_nm} | {seta}</span>",
-                                        font=dict(size=16, color=CORES['primaria'])
-                                    ),
-                                    height=300,
-                                    margin=dict(l=10, r=10, t=60, b=10),
-                                    template="plotly_white",
-                                    yaxis=dict(showgrid=True, gridcolor='#eee')
+                                    title=dict(text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{macro_nm} | {gestor_nm}</span>", font=dict(size=20, color=CORES['primaria'])),
+                                    height=380, template="plotly_white", dragmode=False,
+                                    xaxis=dict(fixedrange=True, type='category', tickfont=dict(size=14, weight="bold"), showgrid=False),
+                                    yaxis=dict(fixedrange=True, showgrid=True, gridcolor='#eee', tickfont=dict(size=12)),
+                                    margin=dict(l=20, r=20, t=70, b=20), bargap=0.3
                                 )
-                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
+
+                                dado_ref_linha = dado_plot[dado_plot['Quad'] == quad_ref]
+                                if not dado_ref_linha.empty:
+                                    row_r = dado_ref_linha.iloc[0]
+                                    val_ref_fmt = formatar_valor(row_r['Valor'], nome_ind)
+                                    if check_meta(row_r):
+                                        st.markdown(f"<div style='background-color:{CORES['sucesso_bg']}; color:{CORES['sucesso_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; font-size:1.2rem;'>✅ META ATINGIDA EM {quad_ref} (Result: {val_ref_fmt})</div>", unsafe_allow_html=True)
+                                    else:
+                                        st.markdown(f"<div style='background-color:{CORES['falha_bg']}; color:{CORES['falha_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; font-size:1.2rem;'>⚠️ NAO ATINGIDA EM {quad_ref} (Result: {val_ref_fmt})</div>", unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f"<div style='background-color:{CORES['neutro_bg']}; color:{CORES['neutro_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold;'>ℹ️ SEM DADOS EM {quad_ref}</div>", unsafe_allow_html=True)
                                 st.markdown("</div>", unsafe_allow_html=True)
 
+# ABA 2 (RELATORIO ORIGINAL)
 with tab2:
-    st.markdown(f"<h3 style='color:{CORES['primaria']}'>Relatório Detalhado - {sel_ano}.{sel_quad}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='color:{CORES['primaria']}'>Relatorio Sintetico - Referencia: {quad_ref}</h3>", unsafe_allow_html=True)
+    st.markdown("---")
     
-    df_relatorio = df_filtered[
-        (df_filtered['Ano'] == sel_ano) & 
-        (df_filtered['Quadrimestre'] == sel_quad)
-    ].copy()
-    
-    if df_relatorio.empty:
-        st.info("Não há dados lançados para este período.")
-    else:
-        lst_ok, lst_nok = [], []
+    if not df_filtered.empty:
+        lst_sim, lst_nao, lst_sem = [], [], []
+        todos_indicadores = sorted(df_filtered['Chave'].unique())
         
-        for _, row in df_relatorio.iterrows():
-            ind = row['Indicador']
-            unid = row['Unidade']
-            res = formatar_valor(row['Resultado_Num'])
-            meta = formatar_valor(row['Meta_Num'])
+        for chave in todos_indicadores:
+            info_ind = df_filtered[df_filtered['Chave'] == chave].iloc[0]
+            macro_nm, gestor_nm, ind_nm = info_ind['Macro'], info_ind['Gestor'], info_ind['Indicador']
+            linha = df_filtered[(df_filtered['Chave'] == chave) & (df_filtered['Quad'] == quad_ref)]
             
-            html_card = f"""
-            <div style='font-weight:bold; color:{CORES['texto']}'>{ind}</div>
-            <div style='font-size:0.85rem; color:#666; margin-bottom:5px;'>👤 {unid}</div>
-            <div style='font-size:1.1rem;'>
-                <b>Resultado: {res}</b> <span style='color:#888; font-size:0.9rem'>(Meta: {meta})</span>
-            </div>
-            """
+            titulo_html = f"<div style='font-size:1.1rem; font-weight:bold; color:{CORES['texto']}'>{ind_nm}</div>"
+            subtitulo_html = f"<div style='font-size:0.9rem; color:#666'>📂 {macro_nm} | 👤 {gestor_nm}</div>"
             
-            if check_meta(row):
-                lst_ok.append(html_card)
+            if not linha.empty:
+                row = linha.iloc[0]
+                val_f = formatar_valor(row['Valor'], ind_nm)
+                meta_f = formatar_valor(row['Meta'], ind_nm)
+                detalhe_html = f"<div style='margin-top:5px; font-weight:600;'>Resultado: <span style='font-size:1.2rem'>{val_f}</span> <span style='color:#888; font-weight:400'>(Meta: {meta_f})</span></div>"
+                bloco_completo = f"{titulo_html}{subtitulo_html}{detalhe_html}"
+                
+                if check_meta(row): lst_sim.append(bloco_completo)
+                else: lst_nao.append(bloco_completo)
             else:
-                lst_nok.append(html_card)
-        
-        col_ok, col_nok = st.columns(2)
-        
-        with col_ok:
-            st.markdown(f"""
-            <div style='background-color:{CORES['sucesso_bg']}; color:{CORES['sucesso_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; margin-bottom:10px;'>
-                ✅ METAS BATIDAS ({len(lst_ok)})
-            </div>""", unsafe_allow_html=True)
-            for item in lst_ok:
-                st.markdown(f"<div style='background:white; padding:15px; border-radius:8px; border-left:5px solid {CORES['sucesso']}; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:10px;'>{item}</div>", unsafe_allow_html=True)
-                
-        with col_nok:
-            st.markdown(f"""
-            <div style='background-color:{CORES['falha_bg']}; color:{CORES['falha_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; margin-bottom:10px;'>
-                ⚠️ NÃO BATIDAS ({len(lst_nok)})
-            </div>""", unsafe_allow_html=True)
-            for item in lst_nok:
-                st.markdown(f"<div style='background:white; padding:15px; border-radius:8px; border-left:5px solid {CORES['atencao']}; box-shadow:0 1px 3px rgba(0,0,0,0.1); margin-bottom:10px;'>{item}</div>", unsafe_allow_html=True)
-                
+                bloco_sem = f"{titulo_html}{subtitulo_html}<div style='margin-top:5px; color:#888'>Sem lancamento neste periodo.</div>"
+                lst_sem.append(bloco_sem)
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown(f"<div style='background-color:{CORES['sucesso_bg']}; padding:15px; border-radius:8px; border:1px solid #c3e6cb; margin-bottom:15px'><h3 style='margin:0; color:{CORES['sucesso_txt']}; text-align:center'>✅ ATINGIRAM ({len(lst_sim)})</h3></div>", unsafe_allow_html=True)
+            for item in lst_sim: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['sucesso']}'>{item}</div>", unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"<div style='background-color:{CORES['falha_bg']}; padding:15px; border-radius:8px; border:1px solid #ffeeba; margin-bottom:15px'><h3 style='margin:0; color:{CORES['falha_txt']}; text-align:center'>⚠️ NAO ATINGIRAM ({len(lst_nao)})</h3></div>", unsafe_allow_html=True)
+            for item in lst_nao: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['atencao']}'>{item}</div>", unsafe_allow_html=True)
+        with c3:
+            st.markdown(f"<div style='background-color:{CORES['neutro_bg']}; padding:15px; border-radius:8px; border:1px solid #d6d8db; margin-bottom:15px'><h3 style='margin:0; color:{CORES['neutro_txt']}; text-align:center'>ℹ️ NAO CITADOS ({len(lst_sem)})</h3></div>", unsafe_allow_html=True)
+            for item in lst_sem: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid #6c757d'>{item}</div>", unsafe_allow_html=True)
