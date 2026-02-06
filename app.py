@@ -17,7 +17,6 @@ st.set_page_config(
 USUARIOS = {
     "TRE-CE": "TReCe.2026",
     "admin": "aDMiN.2026"
-    
 }
 
 def verificar_login():
@@ -55,7 +54,7 @@ def verificar_login():
 verificar_login()
 
 # ==============================================================================
-# 2. DESIGN (CORES ORIGINAIS MANTIDAS)
+# 2. DESIGN (MANTIDO ORIGINAL)
 # ==============================================================================
 CORES = {
     "primaria": "#4682B4",         # SteelBlue
@@ -64,7 +63,7 @@ CORES = {
     "texto": "#2C3E50",            
     "fundo": "#F4F6F9",            
     "sucesso": "#2E8B57",          # Verde
-    "atencao": "#DAA520",          # Dourado (Original)
+    "atencao": "#DAA520",          # Dourado
     "sucesso_bg": "#D4EDDA", "sucesso_txt": "#155724",      
     "falha_bg": "#FFF3CD",   "falha_txt": "#856404",        
     "neutro_bg": "#E2E3E5",  "neutro_txt": "#383D41"        
@@ -104,12 +103,50 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 3. MOTOR DE DADOS (CORRIGIDO MACRO E META)
+# 3. MOTOR DE DADOS COM CORREÇÃO AUTOMÁTICA DE POLARIDADE
 # ==============================================================================
+
+def definir_polaridade_inteligente(nome_indicador, valor_planilha):
+    """
+    Função que corrige o erro de cores.
+    Se o nome tiver 'Tempo' ou 'Congestionamento', força polaridade negativa.
+    """
+    nome = str(nome_indicador).lower()
+    
+    # Palavras-chave que indicam "Quanto Menor, Melhor" (Polaridade -1)
+    palavras_chave_negativas = [
+        'tempo', 
+        'taxa de congestionamento', 
+        'custo', 
+        'despesa', 
+        'absenteísmo',
+        'pendência',
+        'acervo'
+    ]
+    
+    # 1. Prioridade: Detecção pelo nome
+    if any(p in nome for p in palavras_chave_negativas):
+        return -1
+    
+    # 2. Se não achar pelo nome, tenta usar o valor da planilha (se existir)
+    try:
+        val = float(valor_planilha)
+        if val == 1 or val == -1:
+            return val
+    except:
+        pass
+        
+    # 3. Padrão: Quanto Maior, Melhor (1)
+    return 1
+
 @st.cache_data(ttl=60)
 def load_data():
     sheet_id = "1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs"
     url_csv = f"https://docs.google.com/spreadsheets/d/1Ue4EuT4-NOJwF4VesxFvktkM9kEJdVe7E5i7n8PkBds/edit?usp=sharing"
+
+    # Tenta converter link de visualização para exportação CSV se necessário
+    if "/edit" in url_csv:
+        url_csv = url_csv.replace("/edit?usp=sharing", "/export?format=csv")
 
     try:
         df = pd.read_csv(url_csv)
@@ -127,7 +164,6 @@ def load_data():
         if 'Resultado_Num' in df.columns:
             df['Valor'] = df['Resultado_Num']
         elif 'Resultado' in df.columns:
-             # Tenta limpar caso venha texto
              df['Valor'] = pd.to_numeric(df['Resultado'].astype(str).str.replace(',', '.'), errors='coerce')
 
         # 3. Meta_Num -> Meta
@@ -136,14 +172,13 @@ def load_data():
         elif 'Meta' in df.columns:
              df['Meta'] = pd.to_numeric(df['Meta'].astype(str).str.replace(',', '.'), errors='coerce')
             
-        # 4. Macrodesafio -> Macro (CORREÇÃO AQUI)
-        # Se a coluna Macrodesafio existir, joga para Macro
+        # 4. Macrodesafio
         if 'Macrodesafio' in df.columns:
             df['Macro'] = df['Macrodesafio']
         elif 'Macro' not in df.columns: 
-            df['Macro'] = 'Geral' # Fallback se não achar nada
+            df['Macro'] = 'Geral'
 
-        # 5. Criar 'Quad' (Periodo)
+        # 5. Criar 'Quad'
         df['Ano'] = df['Ano'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quadrimestre'] = df['Quadrimestre'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quad'] = df['Ano'] + "." + df['Quadrimestre']
@@ -153,16 +188,20 @@ def load_data():
         df['Indicador'] = df['Indicador'].astype(str)
         df['Macro'] = df['Macro'].astype(str)
 
-        # 7. Limpeza Numérica Final
+        # 7. Limpeza Numérica
         for col in ['Meta', 'Valor']:
             if col not in df.columns: df[col] = 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
             
-        # 8. Polaridade
-        if 'Polaridade' in df.columns:
-            df['Polaridade'] = pd.to_numeric(df['Polaridade'], errors='coerce').fillna(1)
-        else:
-            df['Polaridade'] = 1
+        # 8. APLICAÇÃO DA CORREÇÃO DE POLARIDADE
+        # Criamos uma lista com a polaridade corrigida linha a linha
+        polaridades_corrigidas = []
+        for index, row in df.iterrows():
+            pol_original = row.get('Polaridade', 1)
+            pol_nova = definir_polaridade_inteligente(row['Indicador'], pol_original)
+            polaridades_corrigidas.append(pol_nova)
+            
+        df['Polaridade'] = polaridades_corrigidas
 
         return df
     except Exception as e:
@@ -173,22 +212,23 @@ df = load_data()
 
 def formatar_valor(valor, nome_indicador):
     nome_indicador = nome_indicador.lower()
+    # Formata como % se tiver palavras chave
     if any(x in nome_indicador for x in ['indice', 'taxa', 'percentual', '%']):
-        return f"{valor}%"
-    return f"{valor}"
+        return f"{valor:.2f}%"
+    return f"{valor:.2f}"
 
 def check_meta(row):
     try:
         meta = float(row['Meta'])
         valor = float(row['Valor'])
-        polaridade = row.get('Polaridade', 1) 
+        polaridade = row['Polaridade'] # Agora usamos a polaridade corrigida
         
-        if polaridade == 1:
+        if polaridade == 1:   # Maior Melhor (Ex: Produtividade)
             return valor >= meta
-        elif polaridade == -1: 
+        elif polaridade == -1: # Menor Melhor (Ex: Tempo)
             return valor <= meta
         else:
-            return valor >= meta
+            return valor >= meta # Fallback
     except:
         return False
 
@@ -213,14 +253,13 @@ with st.sidebar:
         all_macros = sorted(df['Macro'].unique())
         sel_macro = st.multiselect("Macrodesafio:", all_macros, default=all_macros)
         
-        # Lógica de cascata: Gestor depende do Macro selecionado
+        # Cascata de filtros
         if sel_macro:
             gestores_disp = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
         else:
             gestores_disp = []  
         sel_gestor = st.multiselect("Unidade / Gestor:", gestores_disp, default=gestores_disp)
 
-        # Lógica de cascata: Indicador depende do Gestor
         if sel_gestor:
             filtros_ativos = (df['Macro'].isin(sel_macro)) & (df['Gestor'].isin(sel_gestor))
             ind_disp = sorted(df[filtros_ativos]['Indicador'].unique())
@@ -259,7 +298,6 @@ with tab1:
     if df_filtered.empty or not sel_eixo_x:
         st.info("Selecione os filtros para visualizar.")
     else:
-        # KPI usa apenas o período de referência (quad_ref)
         df_kpi = df_filtered[df_filtered['Quad'] == quad_ref].copy()
         total, sucesso, falha = 0, 0, 0
         
@@ -283,27 +321,22 @@ with tab1:
                 if i + j < len(indicadores):
                     chave = indicadores[i+j]
                     with cols[j]:
-                        # Pega o histórico selecionado no eixo X
                         dado_plot = df_filtered[
                             (df_filtered['Chave'] == chave) & 
                             (df_filtered['Quad'].isin(sel_eixo_x))
                         ].sort_values('Quad')
                         
                         if not dado_plot.empty:
-                            # Infos estáticas (Nome, Gestor)
                             nome_ind = dado_plot['Indicador'].iloc[0]
                             gestor_nm = dado_plot['Gestor'].iloc[0]
                             macro_nm = dado_plot['Macro'].iloc[0]
+                            polaridade_atual = dado_plot['Polaridade'].iloc[0] # Pega polaridade corrigida
                             
-                            # --- CORREÇÃO DA META ---
-                            # Tentamos pegar a meta ESPECÍFICA do quad_ref selecionado
-                            # Se a meta mudou de um ano pro outro, a linha vermelha 
-                            # vai respeitar o período que você está analisando.
+                            # Meta do período de referência
                             meta_ref_row = dado_plot[dado_plot['Quad'] == quad_ref]
                             if not meta_ref_row.empty:
                                 meta_val = meta_ref_row['Meta'].iloc[0]
                             else:
-                                # Fallback: se não tiver meta no periodo de ref, pega a última disponível
                                 meta_val = dado_plot['Meta'].iloc[-1]
                             
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
@@ -320,12 +353,15 @@ with tab1:
                                     hoverinfo='none'
                                 ))
                                 
-                                # Linha de Meta (Agora alinhada com o período de referência)
                                 fig.add_shape(type="line", x0=-0.5, x1=len(dado_plot)-0.5,
                                     y0=meta_val, y1=meta_val,
                                     line=dict(color=CORES['meta_linha'], width=3, dash="dash")
                                 )
+                                
+                                # Seta visual indicando a direção boa
+                                seta = "⬆️ (Maior é Melhor)" if polaridade_atual == 1 else "⬇️ (Menor é Melhor)"
                                 txt_meta = formatar_valor(meta_val, nome_ind)
+                                
                                 fig.add_annotation(
                                     x=len(dado_plot)-0.5, y=meta_val,
                                     text=f" META: {txt_meta} ",
@@ -334,15 +370,14 @@ with tab1:
                                     bgcolor="rgba(255,255,255,0.9)"
                                 )
                                 fig.update_layout(
-                                    title=dict(text=f"<b>{nome_ind}</b><br><span style='font-size:16px;color:#555'>{macro_nm} | {gestor_nm}</span>", font=dict(size=20, color=CORES['primaria'])),
+                                    title=dict(text=f"<b>{nome_ind}</b><br><span style='font-size:14px;color:#555'>{macro_nm} | {seta}</span>", font=dict(size=18, color=CORES['primaria'])),
                                     height=380, template="plotly_white", dragmode=False,
                                     xaxis=dict(fixedrange=True, type='category', tickfont=dict(size=14, weight="bold"), showgrid=False),
                                     yaxis=dict(fixedrange=True, showgrid=True, gridcolor='#eee', tickfont=dict(size=12)),
-                                    margin=dict(l=20, r=20, t=70, b=20), bargap=0.3
+                                    margin=dict(l=20, r=20, t=80, b=20), bargap=0.3
                                 )
                                 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
 
-                                # Status no rodapé do gráfico (para o período de referência)
                                 dado_ref_linha = dado_plot[dado_plot['Quad'] == quad_ref]
                                 if not dado_ref_linha.empty:
                                     row_r = dado_ref_linha.iloc[0]
@@ -394,4 +429,4 @@ with tab2:
             for item in lst_nao: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['atencao']}'>{item}</div>", unsafe_allow_html=True)
         with c3:
             st.markdown(f"<div style='background-color:{CORES['neutro_bg']}; padding:15px; border-radius:8px; border:1px solid #d6d8db; margin-bottom:15px'><h3 style='margin:0; color:{CORES['neutro_txt']}; text-align:center'>ℹ️ NAO CITADOS ({len(lst_sem)})</h3></div>", unsafe_allow_html=True)
-            for item in lst_sem: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid #6c757d'>{item}</div>", unsafe_allow_html=True)
+            for item in lst_sem: st.markdown(f"<div style='background:white; padding:15px; margin-bottom:10px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:5px solid {CORES['atencao']}'>{item}</div>", unsafe_allow_html=True)
