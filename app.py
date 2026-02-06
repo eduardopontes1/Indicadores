@@ -31,7 +31,7 @@ CORES = {
 # CSS Personalizado
 st.markdown(f"""
     <style>
-    @import url('https://docs.google.com/spreadsheets/d/1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs/edit?usp=sharing');
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
     
     html, body, [class*="css"] {{
         font-family: 'Roboto', sans-serif !important;
@@ -122,10 +122,10 @@ def load_data():
     
     # --- CONFIGURAÇÃO DA FONTE DE DADOS ---
     # Opção A: Arquivo Local (Se estiver na mesma pasta)
-    arquivo = "dados_simulados.csv" 
+    #arquivo = "dados_simulados.csv" 
     
     # Opção B: Link da Web (Descomente e coloque seu link abaixo se for usar online)
-    # arquivo = "https://gist.githubusercontent.com/SEU_USUARIO/SEU_GIST_ID/raw/dados.csv"
+     arquivo = "https://docs.google.com/spreadsheets/d/1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs/edit?usp=sharing"
     
     try:
         # Lê o CSV (assumindo separador padrão de vírgula)
