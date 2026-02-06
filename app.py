@@ -5,154 +5,173 @@ import time
 import numpy as np
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E AUTENTICAÇÃO
+# 1. CONFIGURAÇÃO DA PÁGINA E ESTILO
 # ==============================================================================
 st.set_page_config(
     page_title="Painel Estratégico | TRE-CE",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- SISTEMA DE LOGIN ---
-# Usuários e Senhas definidos
+# Paleta de Cores Institucional (Adaptada)
+CORES = {
+    "primaria": "#0c2461",         # Azul Escuro Profundo
+    "secundaria": "#4a69bd",       # Azul Médio
+    "destaque": "#4682B4",         # SteelBlue
+    "meta_linha": "#e55039",       # Vermelho Tomate (Linha da meta)
+    "texto": "#2C3E50",            # Cinza Escuro
+    "fundo": "#F4F6F9",            # Cinza Claro Fundo
+    "sucesso": "#20bf6b",          # Verde Vibrante
+    "atencao": "#eb3b5a",          # Vermelho Vibrante
+    "sucesso_bg": "#d1f2eb", "sucesso_txt": "#0e6655",
+    "falha_bg": "#fadbd8",   "falha_txt": "#78281f"
+}
+
+# CSS Personalizado
+st.markdown(f"""
+    <style>
+    @import url('https://docs.google.com/spreadsheets/d/1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs/edit?usp=sharing');
+    
+    html, body, [class*="css"] {{
+        font-family: 'Roboto', sans-serif !important;
+        background-color: {CORES['fundo']};
+        color: {CORES['texto']};
+    }}
+    
+    /* Cabeçalhos */
+    h1 {{ color: {CORES['primaria']}; font-weight: 800 !important; }}
+    h3 {{ color: {CORES['secundaria']}; font-weight: 700 !important; }}
+    
+    /* Métricas (Cards do Topo) */
+    div[data-testid="stMetric"] {{
+        background-color: white;
+        border-top: 5px solid {CORES['primaria']};
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }}
+    
+    /* Botões */
+    div.stButton > button {{
+        width: 100%;
+        background-color: {CORES['primaria']};
+        color: white;
+        border-radius: 5px;
+        font-weight: bold;
+    }}
+    div.stButton > button:hover {{
+        background-color: {CORES['secundaria']};
+        color: white;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==============================================================================
+# 2. SISTEMA DE LOGIN
+# ==============================================================================
 USUARIOS = {
+    "admin": "admin",      # Senha simples para teste
     "TRE-CE": "TReCe.2026",
-    "admin": "aDMiN.2026",
-    "eduardo": "123" # Para testes rápidos
+    "eduardo": "123"
 }
 
 def verificar_login():
-    """Bloqueia o app até o login ser feito"""
     if "logado" not in st.session_state:
         st.session_state["logado"] = False
 
     if not st.session_state["logado"]:
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            st.markdown(
-                """
-                <div style='background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #666;'>
-                    <h1 style='color: #666; font-size: 2rem;'>🔒 Acesso Restrito</h1>
-                    <p style='color: #666;'>Monitoramento Estratégico TRE-CE</p>
-                </div>
-                <br>
-                """, 
-                unsafe_allow_html=True
-            )
-            
-            usuario = st.text_input("Usuário", placeholder="Digite seu usuário...")
-            senha = st.text_input("Senha", type="password", placeholder="Digite sua senha...")
-            
-            if st.button("ACESSAR SISTEMA", type="primary"):
-                if usuario in USUARIOS and USUARIOS[usuario] == senha:
-                    st.session_state["logado"] = True
-                    st.success("Login realizado com sucesso!")
-                    time.sleep(0.5)
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos.")
+            st.markdown("<br><br><br>", unsafe_allow_html=True)
+            with st.container():
+                st.markdown(
+                    f"""
+                    <div style='background-color: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center;'>
+                        <h1 style='color: {CORES['primaria']}; margin-bottom: 0;'>🔐 Acesso Restrito</h1>
+                        <p style='color: #666; font-size: 1.1rem;'>Painel de Monitoramento Estratégico</p>
+                    </div>
+                    <br>
+                    """, 
+                    unsafe_allow_html=True
+                )
+                usuario = st.text_input("Usuário", placeholder="Digite seu usuário...")
+                senha = st.text_input("Senha", type="password", placeholder="Digite sua senha...")
+                
+                if st.button("ENTRAR NO SISTEMA"):
+                    if usuario in USUARIOS and USUARIOS[usuario] == senha:
+                        st.session_state["logado"] = True
+                        st.success("Acesso autorizado! Carregando...")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("Credenciais inválidas.")
         st.stop()
 
-# Executa o login antes de carregar o resto
 verificar_login()
 
 # ==============================================================================
-# 2. DESIGN E ESTILO (CSS)
+# 3. MOTOR DE DADOS (LOAD DATA)
 # ==============================================================================
-CORES = {
-    "primaria": "#4682B4",         # Azul Steel
-    "meta_linha": "#FF6347",       # Tomate (Linha da meta)
-    "texto": "#2C3E50",            # Cinza Escuro
-    "fundo": "#F4F6F9",            # Cinza Claro Fundo
-    "sucesso": "#2E8B57",          # Verde
-    "atencao": "#C0392B",          # Vermelho
-    "sucesso_bg": "#D4EDDA", "sucesso_txt": "#155724",
-    "falha_bg": "#F8D7DA",   "falha_txt": "#721C24"
-}
-
-st.markdown(f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
-    
-    html, body, [class*="css"] {{
-        font-family: 'Montserrat', sans-serif !important;
-        background-color: {CORES['fundo']};
-        color: {CORES['texto']};
-    }}
-    
-    /* Títulos */
-    h1 {{ color: {CORES['primaria']}; font-weight: 800 !important; }}
-    h2, h3 {{ color: {CORES['texto']}; font-weight: 700 !important; }}
-    
-    /* Cards de Métricas */
-    div[data-testid="stMetric"] {{
-        background-color: white;
-        border-left: 8px solid {CORES['primaria']};
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }}
-    
-    /* Botões */
-    div.stButton > button {{
-        width: 100%;
-        font-weight: bold;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# ==============================================================================
-# 3. MOTOR DE DADOS (Carregamento e Lógica)
-# ==============================================================================
-
 @st.cache_data(ttl=60)
 def load_data():
-    """Carrega os dados já tratados pelo R"""
+    """
+    Carrega os dados.
+    Para usar Link: Substitua 'dados_simulados.csv' pela URL do Gist ou Google Sheets.
+    """
     
-    # CAMINHO DO ARQUIVO (Aponte para o CSV exportado do R)
-    arquivo = "dados_dashboard.csv" 
-    # Se for usar Google Sheets, substitua pela URL do CSV exportado
+    # --- CONFIGURAÇÃO DA FONTE DE DADOS ---
+    # Opção A: Arquivo Local (Se estiver na mesma pasta)
+    arquivo = "dados_simulados.csv" 
+    
+    # Opção B: Link da Web (Descomente e coloque seu link abaixo se for usar online)
+    # arquivo = "https://gist.githubusercontent.com/SEU_USUARIO/SEU_GIST_ID/raw/dados.csv"
     
     try:
+        # Lê o CSV (assumindo separador padrão de vírgula)
         df = pd.read_csv(arquivo)
         
-        # 1. Limpeza de Nomes de Coluna
+        # 1. Padronização de Colunas
         df.columns = df.columns.str.strip()
         
-        # 2. Filtragem de Segurança (Remove linhas sem números válidos)
-        # Como o R já criou Resultado_Num e Meta_Num, usamos eles direto.
+        # 2. Tratamento de Tipos Numéricos
+        # Removemos linhas que não tenham números válidos na Meta ou Resultado
         df = df.dropna(subset=['Meta_Num', 'Resultado_Num'])
         
-        # 3. Tratamento de Polaridade (Garante que não tenha vazios)
+        # 3. Tratamento de Polaridade
         if 'Polaridade' in df.columns:
             df['Polaridade'] = pd.to_numeric(df['Polaridade'], errors='coerce').fillna(1)
         else:
-            df['Polaridade'] = 1 # Padrão Maior Melhor
+            df['Polaridade'] = 1 # Assume Maior é Melhor se não tiver a coluna
 
-        # 4. Criar Coluna de Período para o Gráfico (Eixo X ordenado)
-        # Ex: "2021.1", "2021.2"
+        # 4. Criação de Colunas Temporais para Ordenação
+        # Removemos ".0" caso o ano tenha vindo como float (ex: 2022.0 -> 2022)
         df['Ano'] = df['Ano'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quadrimestre'] = df['Quadrimestre'].astype(str).str.replace(r'\.0$', '', regex=True)
+        
+        # Coluna auxiliar para o eixo X do gráfico (Ex: "2023.1", "2023.2")
         df['Periodo_Grafico'] = df['Ano'] + "." + df['Quadrimestre']
         
-        # 5. Criar Chave Única (Para iterar nos gráficos)
+        # 5. Criar Chave Única (Unidade + Indicador) para facilitar loops
         df['Chave'] = df['Unidade'] + " - " + df['Indicador']
         
         return df
 
     except Exception as e:
-        st.error(f"Erro ao carregar '{arquivo}'. Verifique se o arquivo está na pasta. Detalhe: {e}")
+        st.error(f"⚠️ Erro ao carregar dados. Verifique se o arquivo '{arquivo}' existe ou se o link está correto.")
+        st.error(f"Detalhe do erro: {e}")
         return pd.DataFrame()
 
 df = load_data()
 
+# --- FUNÇÕES AUXILIARES ---
+
 def formatar_valor(valor):
-    """Formata números para exibição (BR)"""
+    """Formata números para o padrão brasileiro (vírgula decimal)"""
     try:
         if pd.isna(valor): return "-"
         if valor >= 1000:
-            return f"{valor:,.0f}".replace(',', '.')
+            return f"{valor:,.0f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         elif isinstance(valor, float):
             return f"{valor:.2f}".replace('.', ',')
         return str(valor)
@@ -160,15 +179,19 @@ def formatar_valor(valor):
         return str(valor)
 
 def check_meta(row):
-    """Verifica se bateu a meta baseado na Polaridade"""
+    """
+    Verifica se a meta foi batida considerando a Polaridade.
+    Polaridade  1: Resultado >= Meta (Ex: Produtividade)
+    Polaridade -1: Resultado <= Meta (Ex: Taxa de Congestionamento)
+    """
     try:
-        meta = row['Meta_Num']
-        real = row['Resultado_Num']
-        polaridade = row['Polaridade']
+        meta = float(row['Meta_Num'])
+        real = float(row['Resultado_Num'])
+        polaridade = int(row['Polaridade'])
         
-        if polaridade == 1:   # Maior é Melhor (Ex: Produtividade)
+        if polaridade == 1:
             return real >= meta
-        elif polaridade == -1: # Menor é Melhor (Ex: Taxa de Congestionamento)
+        elif polaridade == -1:
             return real <= meta
         else:
             return real >= meta # Fallback
@@ -183,29 +206,29 @@ with st.sidebar:
     st.markdown("---")
     
     if not df.empty:
-        # 1. Filtro Ano (Invertido para mostrar o mais recente primeiro)
+        # 1. Filtro de Ano (Ordenado do mais recente para o mais antigo)
         anos_disponiveis = sorted(df['Ano'].unique(), reverse=True)
-        sel_ano = st.selectbox("Selecione o Ano:", anos_disponiveis)
+        sel_ano = st.selectbox("📅 Selecione o Ano:", anos_disponiveis)
         
-        # 2. Filtro Quadrimestre (Dinâmico baseado no ano)
+        # 2. Filtro de Quadrimestre (Apenas os existentes no ano selecionado)
         quads_do_ano = sorted(df[df['Ano'] == sel_ano]['Quadrimestre'].unique())
-        # Tenta pegar o último quadrimestre disponível como padrão
-        idx_quad = len(quads_do_ano) - 1
-        sel_quad = st.selectbox("Quadrimestre de Referência:", quads_do_ano, index=idx_quad)
+        idx_padrao = len(quads_do_ano) - 1 # Tenta pegar o último
+        sel_quad = st.selectbox("📆 Quadrimestre de Referência:", quads_do_ano, index=idx_padrao)
         
         st.markdown("---")
         
-        # 3. Filtro Unidade
-        unidades_disp = sorted(df['Unidade'].dropna().unique())
-        sel_unidade = st.multiselect("Filtrar Unidade(s):", unidades_disp, default=unidades_disp)
+        # 3. Filtro de Unidade
+        unidades_disp = sorted(df['Unidade'].unique())
+        sel_unidade = st.multiselect("🏢 Filtrar Unidade(s):", unidades_disp, default=unidades_disp)
         
-        # 4. Filtro Indicador (Opcional)
+        # 4. Filtro de Indicador (Condicionado às unidades)
         if sel_unidade:
             df_temp = df[df['Unidade'].isin(sel_unidade)]
             ind_disp = sorted(df_temp['Indicador'].unique())
         else:
             ind_disp = []
-        sel_indicador = st.multiselect("Filtrar Indicador(es):", ind_disp, default=[])
+            
+        sel_indicador = st.multiselect("🎯 Filtrar Indicador(es):", ind_disp)
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔄 ATUALIZAR DADOS"):
@@ -213,7 +236,7 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    if st.button("🚪 SAIR"):
+    if st.button("🚪 LOGOUT"):
         st.session_state["logado"] = False
         st.rerun()
 
@@ -221,90 +244,99 @@ with st.sidebar:
 # 5. CORPO DO DASHBOARD
 # ==============================================================================
 
-# Filtra o DataFrame Globalmente
-# Se nenhum indicador for selecionado, mostra todos das unidades selecionadas
-filtro_ind = sel_indicador if sel_indicador else df['Indicador'].unique()
+# Se o usuário não selecionou indicadores, assume todos das unidades filtradas
+lista_indicadores = sel_indicador if sel_indicador else df['Indicador'].unique()
 
+# Filtro Principal do DataFrame
 df_filtered = df[
     (df['Unidade'].isin(sel_unidade)) & 
-    (df['Indicador'].isin(filtro_ind))
+    (df['Indicador'].isin(lista_indicadores))
 ].copy()
 
+# Título Dinâmico
 st.title(f"Painel Estratégico {sel_ano}")
+st.markdown(f"**Referência:** {sel_quad}º Quadrimestre")
 
-# Abas de Navegação
-tab1, tab2 = st.tabs(["📊 VISÃO GRÁFICA", "📋 RELATÓRIO DETALHADO"])
+# Abas
+tab1, tab2 = st.tabs(["📊 VISÃO ESTRATÉGICA", "📋 RELATÓRIO DETALHADO"])
 
 # --- ABA 1: GRÁFICOS ---
 with tab1:
     if df_filtered.empty:
-        st.warning("Nenhum dado encontrado com os filtros selecionados.")
+        st.warning("⚠️ Nenhum dado encontrado para os filtros selecionados.")
     else:
-        # A. CARDS DE KPI (Topo)
-        # Filtra apenas o quadrimestre selecionado para calcular os totais
+        # A. MÉTRICAS KPI (Topo)
+        # Filtra apenas o momento atual (Ano/Quad selecionado)
         df_kpi = df_filtered[
             (df_filtered['Ano'] == sel_ano) & 
             (df_filtered['Quadrimestre'] == sel_quad)
         ].copy()
         
-        total_kpi = len(df_kpi)
-        if total_kpi > 0:
-            sucesso_kpi = df_kpi.apply(check_meta, axis=1).sum()
-            falha_kpi = total_kpi - sucesso_kpi
-            taxa_sucesso = (sucesso_kpi / total_kpi) * 100
+        total = len(df_kpi)
+        
+        if total > 0:
+            sucesso = df_kpi.apply(check_meta, axis=1).sum()
+            falha = total - sucesso
+            taxa = (sucesso / total) * 100
         else:
-            sucesso_kpi, falha_kpi, taxa_sucesso = 0, 0, 0
+            sucesso, falha, taxa = 0, 0, 0
             
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric(f"Indicadores ({sel_quad}º Quad)", total_kpi)
-        c2.metric("Metas Batidas", int(sucesso_kpi))
-        c3.metric("Não Batidas", int(falha_kpi), delta_color="inverse")
-        c4.metric("Taxa de Sucesso", f"{taxa_sucesso:.1f}%")
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Total de Indicadores", total)
+        k2.metric("Metas Batidas", int(sucesso))
+        k3.metric("Não Batidas", int(falha), delta_color="inverse")
+        k4.metric("Taxa de Sucesso", f"{taxa:.1f}%")
         
         st.markdown("---")
         
-        # B. GRADE DE GRÁFICOS (Evolução Histórica)
-        # Vamos iterar pelos indicadores filtrados
-        indicadores_unicos = sorted(df_filtered['Chave'].unique())
+        # B. VISUALIZAÇÃO GRÁFICA (Grid 2 colunas)
+        # Lista única de chaves (Indicador + Unidade) para iterar
+        chaves_unicas = sorted(df_filtered['Chave'].unique())
         
-        # Loop para criar 2 colunas de gráficos
-        for i in range(0, len(indicadores_unicos), 2):
+        for i in range(0, len(chaves_unicas), 2):
             cols = st.columns(2)
+            
+            # Loop interno para preencher as 2 colunas
             for j in range(2):
-                if i + j < len(indicadores_unicos):
-                    chave_atual = indicadores_unicos[i+j]
+                if i + j < len(chaves_unicas):
+                    chave_atual = chaves_unicas[i+j]
                     
                     with cols[j]:
-                        # Pega TODO o histórico desse indicador para montar o gráfico
-                        dado_plot = df_filtered[df_filtered['Chave'] == chave_atual].sort_values(['Ano', 'Quadrimestre'])
+                        # Pega TODO o histórico desse indicador (para mostrar evolução)
+                        dado_plot = df_filtered[df_filtered['Chave'] == chave_atual].sort_values(['Periodo_Grafico'])
                         
                         if not dado_plot.empty:
-                            # Pega infos estáticas do indicador (Nome, Unidade, etc)
+                            # Dados cadastrais do indicador
                             row_info = dado_plot.iloc[-1]
                             nome_ind = row_info['Indicador']
                             unidade_nm = row_info['Unidade']
                             polaridade = row_info['Polaridade']
                             
-                            # Tenta pegar a Meta do período selecionado para desenhar a linha
-                            # Se não tiver meta nesse ano, pega a última disponível
-                            meta_row = dado_plot[(dado_plot['Ano'] == sel_ano) & (dado_plot['Quadrimestre'] == sel_quad)]
-                            if not meta_row.empty:
-                                meta_atual = meta_row['Meta_Num'].values[0]
+                            # Tenta pegar a meta do período selecionado para desenhar a linha de referência
+                            meta_ref = dado_plot[
+                                (dado_plot['Ano'] == sel_ano) & 
+                                (dado_plot['Quadrimestre'] == sel_quad)
+                            ]
+                            
+                            # Se tiver meta no período atual, usa ela. Senão, usa a última disponível.
+                            if not meta_ref.empty:
+                                valor_meta_linha = meta_ref['Meta_Num'].values[0]
                             else:
-                                meta_atual = row_info['Meta_Num']
+                                valor_meta_linha = row_info['Meta_Num']
 
-                            # Define cores das barras (Verde se bateu, Vermelho se não)
+                            # Cores das barras (Dinâmicas)
                             cores = [CORES['sucesso'] if check_meta(r) else CORES['atencao'] for _, r in dado_plot.iterrows()]
-                            # Textos formatados nas barras
+                            
+                            # Textos das barras
                             textos = [formatar_valor(r['Resultado_Num']) for _, r in dado_plot.iterrows()]
 
-                            # --- PLOTLY CHART ---
+                            # --- CRIAÇÃO DO GRÁFICO PLOTLY ---
                             with st.container():
-                                st.markdown(f"<div style='background:white; padding:10px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;'>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='background:white; padding:10px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:20px;'>", unsafe_allow_html=True)
                                 
                                 fig = go.Figure()
                                 
-                                # 1. Barras de Resultado
+                                # Barras
                                 fig.add_trace(go.Bar(
                                     x=dado_plot['Periodo_Grafico'],
                                     y=dado_plot['Resultado_Num'],
@@ -314,38 +346,38 @@ with tab1:
                                     name="Resultado"
                                 ))
                                 
-                                # 2. Linha da Meta (Pontilhada)
+                                # Linha da Meta
                                 fig.add_shape(type="line",
                                     x0=-0.5, x1=len(dado_plot)-0.5,
-                                    y0=meta_atual, y1=meta_atual,
-                                    line=dict(color=CORES['meta_linha'], width=2, dash="dash")
+                                    y0=valor_meta_linha, y1=valor_meta_linha,
+                                    line=dict(color=CORES['meta_linha'], width=3, dash="dash")
                                 )
                                 
-                                # 3. Anotação da Meta e Polaridade
-                                seta = "⬆️ Maior é Melhor" if polaridade == 1 else "⬇️ Menor é Melhor"
+                                # Anotação de Meta e Polaridade
+                                simbolo = "⬆️ Maior é Melhor" if polaridade == 1 else "⬇️ Menor é Melhor"
                                 fig.add_annotation(
-                                    x=len(dado_plot)-0.5, y=meta_atual,
-                                    text=f" META: {formatar_valor(meta_atual)} ",
+                                    x=len(dado_plot)-0.5, y=valor_meta_linha,
+                                    text=f" META: {formatar_valor(valor_meta_linha)} ",
                                     showarrow=False, xanchor="right", yshift=10,
                                     font=dict(color=CORES['meta_linha'], size=12, weight="bold"),
                                     bgcolor="rgba(255,255,255,0.8)"
                                 )
                                 
-                                # Layout do Gráfico
+                                # Layout
                                 fig.update_layout(
                                     title=dict(
-                                        text=f"<b>{nome_ind}</b><br><span style='font-size:13px;color:#555'>{unidade_nm} | {seta}</span>",
+                                        text=f"<b>{nome_ind}</b><br><span style='font-size:13px;color:#555'>{unidade_nm} | {simbolo}</span>",
                                         font=dict(size=16, color=CORES['primaria'])
                                     ),
-                                    height=300,
-                                    margin=dict(l=10, r=10, t=60, b=10),
+                                    height=320,
+                                    margin=dict(l=10, r=10, t=70, b=10),
                                     template="plotly_white",
-                                    yaxis=dict(showgrid=True, gridcolor='#eee')
+                                    yaxis=dict(showgrid=True, gridcolor='#eee'),
+                                    xaxis=dict(showgrid=False)
                                 )
                                 
                                 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
                                 st.markdown("</div>", unsafe_allow_html=True)
-
 
 # --- ABA 2: RELATÓRIO ---
 with tab2:
@@ -358,23 +390,19 @@ with tab2:
     ].copy()
     
     if df_relatorio.empty:
-        st.info("Não há dados lançados para este período específico.")
+        st.info(f"Não há lançamentos de dados para o {sel_quad}º Quadrimestre de {sel_ano}.")
     else:
-        # Listas para separar visualmente
+        # Separa em listas OK e NOK
         lst_ok, lst_nok = [], []
         
         for _, row in df_relatorio.iterrows():
-            ind = row['Indicador']
-            unid = row['Unidade']
-            res = formatar_valor(row['Resultado_Num'])
-            meta = formatar_valor(row['Meta_Num'])
-            
-            # HTML do Cartão
+            # Monta o HTML do Card
             html_card = f"""
-            <div style='font-weight:bold; color:{CORES['texto']}'>{ind}</div>
-            <div style='font-size:0.85rem; color:#666; margin-bottom:5px;'>👤 {unid}</div>
+            <div style='font-weight:bold; color:{CORES['texto']}'>{row['Indicador']}</div>
+            <div style='font-size:0.85rem; color:#666; margin-bottom:5px;'>👤 {row['Unidade']}</div>
             <div style='font-size:1.1rem;'>
-                <b>Resultado: {res}</b> <span style='color:#888; font-size:0.9rem'>(Meta: {meta})</span>
+                <b>Resultado: {formatar_valor(row['Resultado_Num'])}</b> 
+                <span style='color:#888; font-size:0.9rem'>(Meta: {formatar_valor(row['Meta_Num'])})</span>
             </div>
             """
             
@@ -388,7 +416,7 @@ with tab2:
         
         with col_ok:
             st.markdown(f"""
-            <div style='background-color:{CORES['sucesso_bg']}; color:{CORES['sucesso_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; margin-bottom:10px;'>
+            <div style='background-color:{CORES['sucesso_bg']}; color:{CORES['sucesso_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; margin-bottom:10px; border: 1px solid {CORES['sucesso']}'>
                 ✅ METAS BATIDAS ({len(lst_ok)})
             </div>""", unsafe_allow_html=True)
             
@@ -397,7 +425,7 @@ with tab2:
                 
         with col_nok:
             st.markdown(f"""
-            <div style='background-color:{CORES['falha_bg']}; color:{CORES['falha_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; margin-bottom:10px;'>
+            <div style='background-color:{CORES['falha_bg']}; color:{CORES['falha_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold; margin-bottom:10px; border: 1px solid {CORES['atencao']}'>
                 ⚠️ NÃO BATIDAS ({len(lst_nok)})
             </div>""", unsafe_allow_html=True)
             
