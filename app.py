@@ -26,7 +26,7 @@ USUARIOS = {
 # Cada usuário deve ter sua própria chave única (Base32).
 # Você pode gerar novas chaves rodando: pyotp.random_base32()
 SECRETS_2FA = {
-    "TRE-CE": "JBSWY3DPEHPK3PXP",  # <--- Adicione essa chave no Duo Mobile
+    "TRE-CE": "TReCe.2026",  # <--- Adicione essa chave no Duo Mobile
     "admin": "JBSWY3DPEHPK3PXP"    # <--- Para teste, usei a mesma, mas o ideal é ser diferente
 }
 
