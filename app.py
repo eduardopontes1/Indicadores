@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import time
 import numpy as np
+import pyotp  # <--- BIBLIOTECA NOVA NECESSÁRIA
 
 # ==============================================================================
 # 1. CONFIGURAÇÃO E AUTENTICAÇÃO
@@ -14,16 +15,33 @@ st.set_page_config(
 )
 
 # --- SISTEMA DE LOGIN ---
+# Defina aqui seus usuários e senhas
 USUARIOS = {
     "TRE-CE": "TReCe.2026",
     "admin": "aDMiN.2026"
 }
 
+# CHAVES SECRETAS PARA O DUO / AUTHENTICATOR
+# Em um sistema real, isso ficaria num banco de dados seguro.
+# Cada usuário deve ter sua própria chave única (Base32).
+# Você pode gerar novas chaves rodando: pyotp.random_base32()
+SECRETS_2FA = {
+    "TRE-CE": "JBSWY3DPEHPK3PXP",  # <--- Adicione essa chave no Duo Mobile
+    "admin": "JBSWY3DPEHPK3PXP"    # <--- Para teste, usei a mesma, mas o ideal é ser diferente
+}
+
 def verificar_login():
+    # Inicializa variáveis de sessão
     if "logado" not in st.session_state:
         st.session_state["logado"] = False
+    if "estagio_login" not in st.session_state:
+        st.session_state["estagio_login"] = "senha" # Pode ser 'senha' ou '2fa'
+    if "usuario_temp" not in st.session_state:
+        st.session_state["usuario_temp"] = ""
 
+    # Se não estiver logado, exibe a tela de login
     if not st.session_state["logado"]:
+        
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
             st.markdown("<br><br>", unsafe_allow_html=True)
@@ -38,17 +56,51 @@ def verificar_login():
                 unsafe_allow_html=True
             )
             
-            usuario = st.text_input("Usuário", placeholder="Digite seu usuário...")
-            senha = st.text_input("Senha", type="password", placeholder="Digite sua senha...")
-            
-            if st.button("ACESSAR SISTEMA", type="primary"):
-                if usuario in USUARIOS and USUARIOS[usuario] == senha:
-                    st.session_state["logado"] = True
-                    st.success("Login realizado com sucesso!")
-                    time.sleep(0.5)
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos.")
+            # --- ETAPA 1: USUÁRIO E SENHA ---
+            if st.session_state["estagio_login"] == "senha":
+                usuario = st.text_input("Usuário", placeholder="Digite seu usuário...")
+                senha = st.text_input("Senha", type="password", placeholder="Digite sua senha...")
+                
+                if st.button("PRÓXIMA ETAPA", type="primary"):
+                    if usuario in USUARIOS and USUARIOS[usuario] == senha:
+                        # Senha correta, avança para o 2FA
+                        st.session_state["usuario_temp"] = usuario
+                        st.session_state["estagio_login"] = "2fa"
+                        st.rerun()
+                    else:
+                        st.error("Usuário ou senha incorretos.")
+
+            # --- ETAPA 2: CÓDIGO DO DUO / AUTHENTICATOR ---
+            elif st.session_state["estagio_login"] == "2fa":
+                st.info(f"Olá, **{st.session_state['usuario_temp']}**. Digite o código do seu app Duo/Authenticator.")
+                
+                codigo_2fa = st.text_input("Código de 6 dígitos", max_chars=6, placeholder="Ex: 123456")
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("VALIDAR ACESSO", type="primary"):
+                        user_atual = st.session_state["usuario_temp"]
+                        secret = SECRETS_2FA.get(user_atual)
+                        
+                        totp = pyotp.TOTP(secret)
+                        
+                        # Verifica se o código bate
+                        if totp.verify(codigo_2fa):
+                            st.session_state["logado"] = True
+                            st.session_state["estagio_login"] = "concluido"
+                            st.success("Autenticação realizada com sucesso!")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Código inválido ou expirado.")
+                            
+                with col_btn2:
+                    if st.button("Voltar"):
+                        st.session_state["estagio_login"] = "senha"
+                        st.session_state["usuario_temp"] = ""
+                        st.rerun()
+
+        # Bloqueia o restante do app enquanto não logar
         st.stop()
 
 verificar_login()
@@ -56,6 +108,9 @@ verificar_login()
 # ==============================================================================
 # 2. DESIGN (MANTIDO ORIGINAL)
 # ==============================================================================
+# ... (MANTENHA O RESTO DO SEU CÓDIGO DAQUI PARA BAIXO IGUALZINHO) ...
+# ... Só copiei o início para não ficar gigante a resposta ...
+
 CORES = {
     "primaria": "#4682B4",         # SteelBlue
     "primaria_dark": "#315f85",    
@@ -102,99 +157,66 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
+# ... (COLE AQUI O RESTO DAS FUNÇÕES load_data, check_meta, E O RESTO DO DASHBOARD) ...
+# ... MANTENHA O load_data() IGUAL AO QUE JÁ CONSERTAMOS ANTES ...
+
 # ==============================================================================
 # 3. MOTOR DE DADOS COM CORREÇÃO AUTOMÁTICA DE POLARIDADE
 # ==============================================================================
 
 def definir_polaridade_inteligente(nome_indicador, valor_planilha):
-    """
-    Função que corrige o erro de cores.
-    Se o nome tiver 'Tempo' ou 'Congestionamento', força polaridade negativa.
-    """
     nome = str(nome_indicador).lower()
     
-    # Palavras-chave que indicam "Quanto Menor, Melhor" (Polaridade -1)
     palavras_chave_negativas = [
-        'tempo', 
-        'taxa de congestionamento', 
-        'custo', 
-        'despesa', 
-        'absenteísmo',
-        'pendência',
-        'acervo'
+        'tempo', 'taxa de congestionamento', 'custo', 
+        'despesa', 'absenteísmo', 'pendência', 'acervo'
     ]
     
-    # 1. Prioridade: Detecção pelo nome
-    if any(p in nome for p in palavras_chave_negativas):
-        return -1
+    if any(p in nome for p in palavras_chave_negativas): return -1
     
-    # 2. Se não achar pelo nome, tenta usar o valor da planilha (se existir)
     try:
         val = float(valor_planilha)
-        if val == 1 or val == -1:
-            return val
-    except:
-        pass
+        if val == 1 or val == -1: return val
+    except: pass
         
-    # 3. Padrão: Quanto Maior, Melhor (1)
     return 1
 
 @st.cache_data(ttl=60)
 def load_data():
     sheet_id = "1oefuUAE4Vlt9WLecgS0_4ZZZvAfV_c-t5M6nT3YOMjs"
     url_csv = f"https://docs.google.com/spreadsheets/d/1Ue4EuT4-NOJwF4VesxFvktkM9kEJdVe7E5i7n8PkBds/edit?usp=sharing"
-
-    # Tenta converter link de visualização para exportação CSV se necessário
-    if "/edit" in url_csv:
-        url_csv = url_csv.replace("/edit?usp=sharing", "/export?format=csv")
+    if "/edit" in url_csv: url_csv = url_csv.replace("/edit?usp=sharing", "/export?format=csv")
 
     try:
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip()
         
-        # --- MAPEAMENTO E CORREÇÕES ---
-        
-        # 1. Unidade -> Gestor
-        if 'Unidade' in df.columns:
-            df['Gestor'] = df['Unidade']
-        else:
-            df['Gestor'] = df['Gestor'].astype(str)
+        if 'Unidade' in df.columns: df['Gestor'] = df['Unidade']
+        else: df['Gestor'] = df['Gestor'].astype(str)
 
-        # 2. Resultado_Num -> Valor
-        if 'Resultado_Num' in df.columns:
-            df['Valor'] = df['Resultado_Num']
+        if 'Resultado_Num' in df.columns: df['Valor'] = df['Resultado_Num']
         elif 'Resultado' in df.columns:
              df['Valor'] = pd.to_numeric(df['Resultado'].astype(str).str.replace(',', '.'), errors='coerce')
 
-        # 3. Meta_Num -> Meta
-        if 'Meta_Num' in df.columns:
-            df['Meta'] = df['Meta_Num']
+        if 'Meta_Num' in df.columns: df['Meta'] = df['Meta_Num']
         elif 'Meta' in df.columns:
              df['Meta'] = pd.to_numeric(df['Meta'].astype(str).str.replace(',', '.'), errors='coerce')
             
-        # 4. Macrodesafio
-        if 'Macrodesafio' in df.columns:
-            df['Macro'] = df['Macrodesafio']
-        elif 'Macro' not in df.columns: 
-            df['Macro'] = 'Geral'
+        if 'Macrodesafio' in df.columns: df['Macro'] = df['Macrodesafio']
+        elif 'Macro' not in df.columns: df['Macro'] = 'Geral'
 
-        # 5. Criar 'Quad'
         df['Ano'] = df['Ano'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quadrimestre'] = df['Quadrimestre'].astype(str).str.replace(r'\.0$', '', regex=True)
         df['Quad'] = df['Ano'] + "." + df['Quadrimestre']
         
-        # 6. Tipagem
         df['Gestor'] = df['Gestor'].astype(str)
         df['Indicador'] = df['Indicador'].astype(str)
         df['Macro'] = df['Macro'].astype(str)
 
-        # 7. Limpeza Numérica
         for col in ['Meta', 'Valor']:
             if col not in df.columns: df[col] = 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
             
-        # 8. APLICAÇÃO DA CORREÇÃO DE POLARIDADE
-        # Criamos uma lista com a polaridade corrigida linha a linha
         polaridades_corrigidas = []
         for index, row in df.iterrows():
             pol_original = row.get('Polaridade', 1)
@@ -202,7 +224,6 @@ def load_data():
             polaridades_corrigidas.append(pol_nova)
             
         df['Polaridade'] = polaridades_corrigidas
-
         return df
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
@@ -212,7 +233,6 @@ df = load_data()
 
 def formatar_valor(valor, nome_indicador):
     nome_indicador = nome_indicador.lower()
-    # Formata como % se tiver palavras chave
     if any(x in nome_indicador for x in ['indice', 'taxa', 'percentual', '%']):
         return f"{valor:.2f}%"
     return f"{valor:.2f}"
@@ -221,14 +241,14 @@ def check_meta(row):
     try:
         meta = float(row['Meta'])
         valor = float(row['Valor'])
-        polaridade = row['Polaridade'] # Agora usamos a polaridade corrigida
+        polaridade = row['Polaridade']
         
-        if polaridade == 1:   # Maior Melhor (Ex: Produtividade)
+        if polaridade == 1:   
             return valor >= meta
-        elif polaridade == -1: # Menor Melhor (Ex: Tempo)
+        elif polaridade == -1:
             return valor <= meta
         else:
-            return valor >= meta # Fallback
+            return valor >= meta 
     except:
         return False
 
@@ -240,7 +260,6 @@ with st.sidebar:
     st.markdown("---")
     
     if not df.empty:
-        # Filtros
         todos_periodos = sorted(df['Quad'].unique())
         sel_eixo_x = st.multiselect("Periodos no Grafico:", todos_periodos, default=todos_periodos)
         st.write("")
@@ -253,7 +272,6 @@ with st.sidebar:
         all_macros = sorted(df['Macro'].unique())
         sel_macro = st.multiselect("Macrodesafio:", all_macros, default=all_macros)
         
-        # Cascata de filtros
         if sel_macro:
             gestores_disp = sorted(df[df['Macro'].isin(sel_macro)]['Gestor'].unique())
         else:
@@ -293,7 +311,6 @@ st.title("Painel de Monitoramento Estrategico")
 
 tab1, tab2 = st.tabs(["VISAO GRAFICA", "RELATORIO DETALHADO"])
 
-# ABA 1
 with tab1:
     if df_filtered.empty or not sel_eixo_x:
         st.info("Selecione os filtros para visualizar.")
@@ -330,9 +347,8 @@ with tab1:
                             nome_ind = dado_plot['Indicador'].iloc[0]
                             gestor_nm = dado_plot['Gestor'].iloc[0]
                             macro_nm = dado_plot['Macro'].iloc[0]
-                            polaridade_atual = dado_plot['Polaridade'].iloc[0] # Pega polaridade corrigida
+                            polaridade_atual = dado_plot['Polaridade'].iloc[0]
                             
-                            # Meta do período de referência
                             meta_ref_row = dado_plot[dado_plot['Quad'] == quad_ref]
                             if not meta_ref_row.empty:
                                 meta_val = meta_ref_row['Meta'].iloc[0]
@@ -358,7 +374,6 @@ with tab1:
                                     line=dict(color=CORES['meta_linha'], width=3, dash="dash")
                                 )
                                 
-                                # Seta visual indicando a direção boa
                                 seta = "⬆️ (Maior é Melhor)" if polaridade_atual == 1 else "⬇️ (Menor é Melhor)"
                                 txt_meta = formatar_valor(meta_val, nome_ind)
                                 
@@ -390,7 +405,6 @@ with tab1:
                                     st.markdown(f"<div style='background-color:{CORES['neutro_bg']}; color:{CORES['neutro_txt']}; padding:10px; border-radius:5px; text-align:center; font-weight:bold;'>ℹ️ SEM DADOS EM {quad_ref}</div>", unsafe_allow_html=True)
                                 st.markdown("</div>", unsafe_allow_html=True)
 
-# ABA 2
 with tab2:
     st.markdown(f"<h3 style='color:{CORES['primaria']}'>Relatorio Sintetico - Referencia: {quad_ref}</h3>", unsafe_allow_html=True)
     st.markdown("---")
